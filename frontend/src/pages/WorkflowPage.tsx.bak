@@ -1,0 +1,2734 @@
+import React, { useState, useCallback, useRef, useEffect, memo } from 'react';
+import ReactFlow, {
+  MiniMap,
+  Controls,
+  Background,
+  useNodesState,
+  useEdgesState,
+  addEdge,
+  Connection,
+  Edge,
+  Node as ReactFlowNode,
+  ReactFlowProvider,
+  useReactFlow,
+  NodeChange,
+  EdgeChange,
+  NodeTypes,
+  EdgeTypes,
+  Panel,
+  XYPosition,
+  Position,
+  Handle,
+  MarkerType,
+  useViewport,
+  applyNodeChanges,
+  applyEdgeChanges,
+} from 'reactflow';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import {
+  AppShell,
+  Button,
+  Group,
+  Stack,
+  Text,
+  Title,
+  Tooltip,
+  ActionIcon,
+  Menu,
+  rem,
+  ThemeIcon,
+  Modal,
+  TextInput,
+  Textarea,
+  useMantineTheme,
+  Tabs,
+  Switch,
+  Select,
+  MultiSelect,
+  SegmentedControl,
+  Paper,
+  Box,
+  ScrollArea,
+  SimpleGrid,
+  Card,
+  Badge,
+  Progress,
+  RingProgress,
+  Table,
+} from '@mantine/core';
+import { notifications } from '@mantine/notifications';
+import { Dropzone, FileWithPath } from '@mantine/dropzone';
+import {
+  IconDeviceFloppy,
+  IconPlayerPlay,
+  IconPlayerStop,
+  IconPlus,
+  IconSettings,
+  IconUpload,
+  IconDots,
+  IconTrash,
+  IconDownload,
+  IconShare,
+  IconClipboard,
+  IconRobot,
+  IconDatabase,
+  IconWand,
+  IconArrowRight,
+  IconTools,
+  IconCode,
+  IconBulb,
+  IconChartBar,
+  IconChartDots,
+  IconBrain,
+  IconFileReport,
+  IconRocket,
+  IconEye,
+  IconStar,
+  IconCheck,
+  IconX,
+  IconSearch,
+  IconFilter,
+  IconTrendingUp,
+  IconApps,
+  IconLayoutDashboard,
+  IconChartPie,
+  IconWorld,
+  IconClock,
+  IconGauge,
+  IconApi,
+  IconBrandMysql,
+  IconBrandMongodb,
+  IconCheckbox,
+  IconAdjustments,
+  IconChartLine
+} from '@tabler/icons-react';
+import { api, datasetsApi, workflowsApi } from '@/api';
+import { useDisclosure } from '@mantine/hooks';
+import { useMantineColorScheme } from '@mantine/core';
+
+import { Logo } from '@/components/ui/Logo';
+import { NodeConfigPanel } from '../features/workflow/NodeConfigPanel';
+import { WorkflowExecutionPanel } from '../features/workflow/WorkflowExecutionPanel';
+import { AIAssistantPanel } from '../features/workflow/AIAssistantPanel';
+import { DataSourceManager } from '../features/workflow/DataSourceManager';
+import { WorkflowSettings } from '../features/workflow/WorkflowSettings';
+import { WorkflowVariables } from '../features/workflow/WorkflowVariables';
+import { WorkflowAnalytics } from '../features/workflow/WorkflowAnalytics';
+import { WorkflowTemplates } from '../features/workflow/WorkflowTemplates';
+import { AgentTopology } from '../features/workflow/agents/AgentTopology';
+import { useWorkflow } from '../features/workflow/WorkflowContext';
+import { NodeType } from '../features/workflow/utils/nodeUtils';
+
+// Define a custom node type that includes position
+type Node = {
+  id: string;
+  type: string;
+  position: XYPosition;
+  data: {
+    label: string;
+    type?: string;
+    [key: string]: any;
+  };
+};
+
+// Define comprehensive node types for data science workflows
+const NODE_TYPES = {
+  // Data Ingestion
+  dataSource: {
+    label: 'Data Source',
+    capabilities: [
+      { id: 'csv', label: 'CSV Import' },
+      { id: 'database', label: 'Database Connection' },
+      { id: 'api', label: 'API Integration' },
+      { id: 'streaming', label: 'Real-time Streaming' },
+      { id: 'scraping', label: 'Web Scraping' },
+    ],
+  },
+  // Data Cleaning
+  dataPrep: {
+    label: 'Data Preparation',
+    capabilities: [
+      { id: 'missing', label: 'Handle Missing Values' },
+      { id: 'outliers', label: 'Outlier Detection' },
+      { id: 'duplicates', label: 'Remove Duplicates' },
+      { id: 'formatting', label: 'Data Formatting' },
+      { id: 'validation', label: 'Data Validation' },
+    ],
+  },
+  // Feature Engineering
+  featureEngineering: {
+    label: 'Feature Engineering',
+    capabilities: [
+      { id: 'scaling', label: 'Feature Scaling' },
+      { id: 'encoding', label: 'Categorical Encoding' },
+      { id: 'selection', label: 'Feature Selection' },
+      { id: 'extraction', label: 'Feature Extraction' },
+      { id: 'generation', label: 'Feature Generation' },
+      { id: 'dimensionality', label: 'Dimensionality Reduction' },
+    ],
+  },
+  // Machine Learning
+  mlModel: {
+    label: 'ML Model',
+    capabilities: [
+      { id: 'classification', label: 'Classification' },
+      { id: 'regression', label: 'Regression' },
+      { id: 'clustering', label: 'Clustering' },
+      { id: 'timeseries', label: 'Time Series' },
+      { id: 'nlp', label: 'Natural Language Processing' },
+      { id: 'vision', label: 'Computer Vision' },
+      { id: 'automl', label: 'AutoML' },
+    ],
+  },
+  // Model Evaluation
+  evaluation: {
+    label: 'Model Evaluation',
+    capabilities: [
+      { id: 'metrics', label: 'Performance Metrics' },
+      { id: 'validation', label: 'Cross Validation' },
+      { id: 'testing', label: 'Model Testing' },
+      { id: 'comparison', label: 'Model Comparison' },
+      { id: 'interpretation', label: 'Model Interpretation' },
+    ],
+  },
+  // Visualization
+  visualization: {
+    label: 'Visualization',
+    capabilities: [
+      { id: 'eda', label: 'Exploratory Analysis' },
+      { id: 'statistical', label: 'Statistical Plots' },
+      { id: 'interactive', label: 'Interactive Dashboards' },
+      { id: 'reporting', label: 'Automated Reporting' },
+    ],
+  },
+  // Advanced Analytics
+  advanced: {
+    label: 'Advanced Analytics',
+    capabilities: [
+      { id: 'optimization', label: 'Optimization' },
+      { id: 'anomaly', label: 'Anomaly Detection' },
+      { id: 'forecasting', label: 'Forecasting' },
+      { id: 'recommendation', label: 'Recommendation Systems' },
+      { id: 'graph', label: 'Graph Analytics' },
+    ],
+  },
+  // MLOps
+  mlops: {
+    label: 'MLOps',
+    capabilities: [
+      { id: 'versioning', label: 'Model Versioning' },
+      { id: 'deployment', label: 'Model Deployment' },
+      { id: 'monitoring', label: 'Model Monitoring' },
+      { id: 'retraining', label: 'Automated Retraining' },
+      { id: 'serving', label: 'Model Serving' },
+    ],
+  },
+  // Export
+  export: {
+    label: 'Export',
+    capabilities: [
+      { id: 'api', label: 'API Endpoint' },
+      { id: 'batch', label: 'Batch Processing' },
+      { id: 'streaming', label: 'Stream Processing' },
+      { id: 'storage', label: 'Data Storage' },
+    ],
+  },
+};
+
+// Create initial nodes with proper positioning
+const initialNodes: Node[] = [
+  {
+    id: '1',
+    type: 'default',
+    position: { x: 100, y: 100 },
+    data: {
+      label: 'Dataset Loader',
+      type: 'data-ingestion',
+      description: 'Load and validate large datasets',
+      icon: <IconUpload size={20} />,
+      capabilities: [
+        { id: 'csv', label: 'CSV Import' },
+        { id: 'database', label: 'Database Connection' },
+        { id: 'validation', label: 'Data Validation' }
+      ]
+    },
+  },
+  {
+    id: '2',
+    type: 'default',
+    position: { x: 300, y: 100 },
+    data: {
+      label: 'Structural Analysis',
+      type: 'analysis',
+      description: 'Analyze dataset structure and composition',
+      icon: <IconDatabase size={20} />,
+      capabilities: [
+        { id: 'schema_analysis', label: 'Schema Analysis' },
+        { id: 'data_types', label: 'Data Type Analysis' },
+        { id: 'missing_values', label: 'Missing Values Report' }
+      ]
+    },
+  },
+  {
+    id: '3',
+    type: 'default',
+    position: { x: 500, y: 100 },
+    data: {
+      label: 'Quality Checker',
+      type: 'preprocessing',
+      description: 'Data quality assessment and cleaning',
+      icon: <IconWand size={20} />,
+      capabilities: [
+        { id: 'quality_score', label: 'Quality Scoring' },
+        { id: 'auto_clean', label: 'Auto Clean' },
+        { id: 'validation_rules', label: 'Validation Rules' }
+      ]
+    },
+  },
+  {
+    id: '4',
+    type: 'default',
+    position: { x: 700, y: 100 },
+    data: {
+      label: 'Data Merger',
+      type: 'preprocessing',
+      description: 'Merge multiple dataframes',
+      icon: <IconArrowRight size={20} />,
+      capabilities: [
+        { id: 'merge', label: 'DataFrame Merge' },
+        { id: 'join_types', label: 'Join Types' },
+        { id: 'key_matching', label: 'Key Matching' }
+      ]
+    },
+  },
+  {
+    id: '5',
+    type: 'default',
+    position: { x: 100, y: 250 },
+    data: {
+      label: 'Data Binning',
+      type: 'preprocessing',
+      description: 'Bin data into categories',
+      icon: <IconTools size={20} />,
+      capabilities: [
+        { id: 'equal_width', label: 'Equal Width Binning' },
+        { id: 'equal_freq', label: 'Equal Frequency Binning' },
+        { id: 'custom_bins', label: 'Custom Binning' }
+      ]
+    },
+  },
+  {
+    id: '6',
+    type: 'default',
+    position: { x: 300, y: 250 },
+    data: {
+      label: 'Lambda Functions',
+      type: 'preprocessing',
+      description: 'Apply custom lambda functions',
+      icon: <IconCode size={20} />,
+      capabilities: [
+        { id: 'lambda', label: 'Lambda Function' },
+        { id: 'apply', label: 'Apply Function' },
+        { id: 'transform', label: 'Transform Data' }
+      ]
+    },
+  },
+  {
+    id: '7',
+    type: 'default',
+    position: { x: 500, y: 250 },
+    data: {
+      label: 'Feature Engineer',
+      type: 'preprocessing',
+      description: 'Create and transform features',
+      icon: <IconBulb size={20} />,
+      capabilities: [
+        { id: 'feature_gen', label: 'Feature Generation' },
+        { id: 'encoding', label: 'Feature Encoding' },
+        { id: 'scaling', label: 'Feature Scaling' }
+      ]
+    },
+  },
+  {
+    id: '8',
+    type: 'default',
+    position: { x: 700, y: 250 },
+    data: {
+      label: 'EDA Analysis',
+      type: 'analysis',
+      description: 'Deep exploratory data analysis',
+      icon: <IconChartBar size={20} />,
+      capabilities: [
+        { id: 'univariate', label: 'Univariate Analysis' },
+        { id: 'bivariate', label: 'Bivariate Analysis' },
+        { id: 'correlation', label: 'Correlation Analysis' }
+      ]
+    },
+  },
+  {
+    id: '9',
+    type: 'default',
+    position: { x: 100, y: 400 },
+    data: {
+      label: 'Feature Importance',
+      type: 'analysis',
+      description: 'Analyze feature importance',
+      icon: <IconChartDots size={20} />,
+      capabilities: [
+        { id: 'importance_score', label: 'Importance Scoring' },
+        { id: 'shap', label: 'SHAP Values' },
+        { id: 'permutation', label: 'Permutation Importance' }
+      ]
+    },
+  },
+  {
+    id: '10',
+    type: 'default',
+    position: { x: 300, y: 400 },
+    data: {
+      label: 'Binary Classifier',
+      type: 'analysis',
+      description: 'Binary classification with resampling',
+      icon: <IconBrain size={20} />,
+      capabilities: [
+        { id: 'classification', label: 'Binary Classification' },
+        { id: 'resampling', label: 'Data Resampling' },
+        { id: 'model_eval', label: 'Model Evaluation' }
+      ]
+    },
+  },
+  {
+    id: '11',
+    type: 'default',
+    position: { x: 500, y: 400 },
+    data: {
+      label: 'Report Generator',
+      type: 'visualization',
+      description: 'Generate comprehensive reports',
+      icon: <IconFileReport size={20} />,
+      capabilities: [
+        { id: 'report', label: 'Report Generation' },
+        { id: 'export', label: 'Export Results' },
+        { id: 'visualization', label: 'Data Visualization' }
+      ]
+    },
+  }
+];
+
+const initialEdges: Edge[] = [
+  { id: 'e1-2', source: '1', target: '2', sourceHandle: 'right', targetHandle: 'left' },
+  { id: 'e2-3', source: '2', target: '3', sourceHandle: 'right', targetHandle: 'left' },
+  { id: 'e3-4', source: '3', target: '4', sourceHandle: 'right', targetHandle: 'left' },
+  { id: 'e4-5', source: '4', target: '5', sourceHandle: 'bottom', targetHandle: 'top' },
+  { id: 'e5-6', source: '5', target: '6', sourceHandle: 'right', targetHandle: 'left' },
+  { id: 'e6-7', source: '6', target: '7', sourceHandle: 'right', targetHandle: 'left' },
+  { id: 'e7-8', source: '7', target: '8', sourceHandle: 'right', targetHandle: 'left' },
+  { id: 'e8-9', source: '8', target: '9', sourceHandle: 'bottom', targetHandle: 'top' },
+  { id: 'e9-10', source: '9', target: '10', sourceHandle: 'right', targetHandle: 'left' },
+  { id: 'e10-11', source: '10', target: '11', sourceHandle: 'right', targetHandle: 'left' }
+];
+
+interface DatasetAnalysis {
+  columns: {
+    name: string;
+    type: string;
+    nullPercentage: number;
+    uniqueValues: number;
+    distribution?: any;
+  }[];
+  rowCount: number;
+  dataQuality: {
+    score: number;
+    issues: string[];
+  };
+  suggestedWorkflows: {
+    type: string;
+    confidence: number;
+    description: string;
+    nodes: Node[];
+    edges: Edge[];
+  }[];
+}
+
+interface AIAnalysisResult {
+  dataProfile: {
+    rowCount: number;
+    columnCount: number;
+    memoryUsage: string;
+    dataTypes: Record<string, number>;
+    completeness: number;
+  };
+  quality: {
+    score: number;
+    issues: string[];
+    recommendations: string[];
+  };
+  insights: {
+    correlations: Array<{
+      columns: [string, string];
+      strength: number;
+      type: string;
+    }>;
+    patterns: Array<{
+      column: string;
+      pattern: string;
+      confidence: number;
+    }>;
+    anomalies: Array<{
+      column: string;
+      type: string;
+      severity: number;
+      description: string;
+    }>;
+  };
+  mlPotential: {
+    suggestedTasks: Array<{
+      type: string;
+      confidence: number;
+      targetColumn: string;
+      features: string[];
+      estimatedPerformance: number;
+    }>;
+    datasetComplexity: {
+      dimensionality: number;
+      sparsity: number;
+      classImbalance?: number;
+    };
+  };
+  recommendations: {
+    preprocessing: Array<{
+      step: string;
+      priority: number;
+      reason: string;
+      impact: number;
+    }>;
+    featureEngineering: Array<{
+      technique: string;
+      columns: string[];
+      expectedImpact: number;
+      complexity: number;
+    }>;
+    modelSelection: Array<{
+      algorithm: string;
+      estimatedPerformance: number;
+      complexity: string;
+      trainingTime: string;
+    }>;
+  };
+}
+
+// Add new AI-powered node types
+const AI_NODE_TYPES = {
+  autoML: {
+    label: 'AutoML',
+    description: 'Automated machine learning pipeline',
+    capabilities: [
+      { id: 'model_selection', label: 'Model Selection' },
+      { id: 'hyperparameter_tuning', label: 'Hyperparameter Tuning' },
+      { id: 'feature_selection', label: 'Feature Selection' },
+      { id: 'ensemble_learning', label: 'Ensemble Learning' },
+    ],
+  },
+  dataPreprocessing: {
+    label: 'Smart Preprocessing',
+    description: 'AI-guided data preprocessing',
+    capabilities: [
+      { id: 'auto_cleaning', label: 'Automated Cleaning' },
+      { id: 'type_inference', label: 'Type Inference' },
+      { id: 'missing_values', label: 'Missing Value Treatment' },
+      { id: 'outlier_detection', label: 'Outlier Detection' },
+    ],
+  },
+  featureEngineering: {
+    label: 'Feature Factory',
+    description: 'Automated feature engineering',
+    capabilities: [
+      { id: 'feature_generation', label: 'Feature Generation' },
+      { id: 'feature_selection', label: 'Feature Selection' },
+      { id: 'encoding', label: 'Smart Encoding' },
+      { id: 'scaling', label: 'Auto Scaling' },
+    ],
+  },
+  visualization: {
+    label: 'Smart Viz',
+    description: 'AI-powered visualizations',
+    capabilities: [
+      { id: 'auto_viz', label: 'Auto Visualization' },
+      { id: 'correlation_plots', label: 'Correlation Analysis' },
+      { id: 'distribution_plots', label: 'Distribution Analysis' },
+      { id: 'anomaly_viz', label: 'Anomaly Visualization' },
+    ],
+  },
+  modelEvaluation: {
+    label: 'Model Insights',
+    description: 'Advanced model evaluation',
+    capabilities: [
+      { id: 'performance_metrics', label: 'Performance Analysis' },
+      { id: 'model_explanation', label: 'Model Explanation' },
+      { id: 'feature_importance', label: 'Feature Importance' },
+      { id: 'bias_detection', label: 'Bias Detection' },
+    ],
+  },
+  deployment: {
+    label: 'MLOps Deploy',
+    description: 'Model deployment and monitoring',
+    capabilities: [
+      { id: 'model_serving', label: 'Model Serving' },
+      { id: 'performance_monitoring', label: 'Performance Monitoring' },
+      { id: 'drift_detection', label: 'Drift Detection' },
+      { id: 'auto_retraining', label: 'Auto Retraining' },
+    ],
+  },
+};
+
+// Add AI assistant prompts
+const AI_ASSISTANT_PROMPTS = {
+  dataAnalysis: "Analyze this dataset and tell me what's interesting about it",
+  modelSelection: "What's the best model for my data?",
+  visualization: "Show me the most important patterns in my data",
+  featureEngineering: "Help me create better features",
+  modelTuning: "Help me improve my model's performance",
+  deployment: "Help me deploy my model safely",
+};
+
+// Add AI-powered workflow templates
+const AI_WORKFLOW_TEMPLATES = [
+  {
+    id: 'classification',
+    name: 'Smart Classification',
+    description: 'End-to-end classification with AutoML',
+    nodes: [
+      { type: 'dataPreprocessing', position: { x: 100, y: 100 } },
+      { type: 'featureEngineering', position: { x: 300, y: 100 } },
+      { type: 'autoML', position: { x: 500, y: 100 } },
+      { type: 'modelEvaluation', position: { x: 700, y: 100 } },
+      { type: 'deployment', position: { x: 900, y: 100 } },
+    ],
+  },
+  // ... more templates ...
+];
+
+// Add type definitions at the top of the file
+interface Recommendation {
+  step: string;
+  sourceNode: string;
+  targetNode: string;
+}
+
+// Add autonomous agent types
+const AGENT_TYPES = {
+  dataExplorer: {
+    label: 'Data Explorer Agent',
+    description: 'Autonomously explores and analyzes datasets',
+    capabilities: [
+      { id: 'pattern_discovery', label: 'Pattern Discovery' },
+      { id: 'anomaly_detection', label: 'Anomaly Detection' },
+      { id: 'correlation_analysis', label: 'Correlation Analysis' },
+      { id: 'data_profiling', label: 'Data Profiling' },
+    ],
+  },
+  featureEngineer: {
+    label: 'Feature Engineer Agent',
+    description: 'Automatically engineers and selects optimal features',
+    capabilities: [
+      { id: 'feature_generation', label: 'Feature Generation' },
+      { id: 'feature_selection', label: 'Feature Selection' },
+      { id: 'feature_transformation', label: 'Feature Transformation' },
+      { id: 'dimensionality_reduction', label: 'Dimensionality Reduction' },
+    ],
+  },
+  modelArchitect: {
+    label: 'Model Architect Agent',
+    description: 'Designs and optimizes ML model architectures',
+    capabilities: [
+      { id: 'architecture_search', label: 'Architecture Search' },
+      { id: 'hyperparameter_optimization', label: 'Hyperparameter Optimization' },
+      { id: 'model_selection', label: 'Model Selection' },
+      { id: 'ensemble_design', label: 'Ensemble Design' },
+    ],
+  },
+  dataQualityAgent: {
+    label: 'Data Quality Agent',
+    description: 'Monitors and improves data quality',
+    capabilities: [
+      { id: 'quality_assessment', label: 'Quality Assessment' },
+      { id: 'data_cleaning', label: 'Data Cleaning' },
+      { id: 'validation_rules', label: 'Validation Rules' },
+      { id: 'drift_detection', label: 'Drift Detection' },
+    ],
+  },
+  workflowOptimizer: {
+    label: 'Workflow Optimizer Agent',
+    description: 'Optimizes workflow structure and performance',
+    capabilities: [
+      { id: 'flow_optimization', label: 'Flow Optimization' },
+      { id: 'resource_allocation', label: 'Resource Allocation' },
+      { id: 'bottleneck_detection', label: 'Bottleneck Detection' },
+      { id: 'parallel_execution', label: 'Parallel Execution' },
+    ],
+  },
+  insightGenerator: {
+    label: 'Insight Generator Agent',
+    description: 'Generates actionable insights from data',
+    capabilities: [
+      { id: 'trend_analysis', label: 'Trend Analysis' },
+      { id: 'insight_discovery', label: 'Insight Discovery' },
+      { id: 'recommendation_generation', label: 'Recommendation Generation' },
+      { id: 'narrative_generation', label: 'Narrative Generation' },
+    ],
+  },
+};
+
+// Add agent interaction types
+const AGENT_INTERACTIONS = {
+  collaboration: {
+    type: 'collaboration',
+    description: 'Agents work together to solve complex tasks',
+    protocols: ['task_delegation', 'knowledge_sharing', 'consensus_building'],
+  },
+  supervision: {
+    type: 'supervision',
+    description: 'Agents monitor and guide other agents',
+    protocols: ['quality_control', 'performance_monitoring', 'intervention'],
+  },
+  learning: {
+    type: 'learning',
+    description: 'Agents learn from experience and feedback',
+    protocols: ['reinforcement_learning', 'transfer_learning', 'meta_learning'],
+  },
+};
+
+// Enhance node types with agent capabilities
+const ENHANCED_NODE_TYPES = {
+  ...NODE_TYPES,
+  agentNode: {
+    label: 'Agent Node',
+    capabilities: Object.entries(AGENT_TYPES).map(([id, agent]) => ({
+      id,
+      label: agent.label,
+      description: agent.description,
+      capabilities: agent.capabilities,
+    })),
+  },
+  agentInteraction: {
+    label: 'Agent Interaction',
+    capabilities: Object.entries(AGENT_INTERACTIONS).map(([id, interaction]) => ({
+      id,
+      label: interaction.type,
+      description: interaction.description,
+      protocols: interaction.protocols,
+    })),
+  },
+};
+
+// Update interface for agent-enhanced nodes
+interface AgentNode extends Node {
+  agentType?: keyof typeof AGENT_TYPES;
+  state?: {
+    status: 'idle' | 'learning' | 'working' | 'completed' | 'error';
+    progress: number;
+    results?: any;
+    insights?: string[];
+  };
+  interactions?: {
+    collaborators: string[];
+    protocols: string[];
+    messages: Array<{
+      from: string;
+      to: string;
+      content: string;
+      timestamp: Date;
+    }>;
+  };
+}
+
+// Add this new interface before the WorkflowPage component
+interface CapabilityCategory {
+  id: string;
+  label: string;
+  icon: React.ReactNode;
+  capabilities: Array<{
+    id: string;
+    name: string;
+    description: string;
+    icon: React.ReactNode;
+    category: string;
+    popularity: number;
+    complexity: 'beginner' | 'intermediate' | 'advanced';
+    tags: string[];
+    function: (input: any) => Promise<any>;
+  }>;
+}
+
+const CAPABILITY_CATEGORIES: CapabilityCategory[] = [
+  {
+    id: 'data-ingestion',
+    label: 'Data Ingestion',
+    icon: <IconDatabase size={24} />,
+    capabilities: [
+      {
+        id: 'dataset-loader',
+        name: 'Dataset Loader',
+        description: 'Load and validate large datasets with automatic schema detection',
+        icon: <IconUpload size={24} />,
+        category: 'data-ingestion',
+        popularity: 95,
+        complexity: 'beginner',
+        tags: ['import', 'csv', 'database', 'validation'],
+        function: async (input: any) => {
+          // Dataset loader implementation
+          return { data: input.data, schema: input.schema };
+        }
+      },
+      {
+        id: 'sql-connection',
+        name: 'SQL Database',
+        description: 'Connect to SQL databases (PostgreSQL, MySQL, SQLite) with query builder',
+        icon: <IconDatabase size={24} />,
+        category: 'data-ingestion',
+        popularity: 92,
+        complexity: 'intermediate',
+        tags: ['database', 'sql', 'query'],
+        function: async (config: any) => {
+          // SQL connection implementation
+          return { connection: config.connection, tables: config.tables };
+        }
+      },
+      {
+        id: 'api-connector',
+        name: 'API Connector',
+        description: 'Connect to REST/GraphQL APIs with authentication and pagination support',
+        icon: <IconApi size={24} />,
+        category: 'data-ingestion',
+        popularity: 88,
+        complexity: 'intermediate',
+        tags: ['api', 'rest', 'graphql'],
+        function: async (config: any) => {
+          // API connector implementation
+          return { data: config.data, metadata: config.metadata };
+        }
+      }
+    ]
+  },
+  {
+    id: 'preprocessing',
+    label: 'Data Preprocessing',
+    icon: <IconAdjustments size={24} />,
+    capabilities: [
+      {
+        id: 'auto-clean',
+        name: 'Auto Clean',
+        description: 'AI-powered data cleaning with missing value imputation and outlier detection',
+        icon: <IconWand size={24} />,
+        category: 'preprocessing',
+        popularity: 94,
+        complexity: 'beginner',
+        tags: ['cleaning', 'ai', 'automation'],
+        function: async (data: any) => {
+          // Auto cleaning implementation
+          return { cleanedData: data.cleaned, report: data.report };
+        }
+      },
+      {
+        id: 'feature-engineering',
+        name: 'Feature Factory',
+        description: 'Automated feature engineering with type-specific transformations',
+        icon: <IconTools size={24} />,
+        category: 'preprocessing',
+        popularity: 90,
+        complexity: 'intermediate',
+        tags: ['features', 'engineering', 'automation'],
+        function: async (data: any) => {
+          // Feature engineering implementation
+          return { features: data.features, importance: data.importance };
+        }
+      },
+      {
+        id: 'data-validation',
+        name: 'Data Validator',
+        description: 'Schema validation and data quality checks with custom rules',
+        icon: <IconCheckbox size={24} />,
+        category: 'preprocessing',
+        popularity: 86,
+        complexity: 'intermediate',
+        tags: ['validation', 'quality', 'rules'],
+        function: async (data: any) => {
+          // Data validation implementation
+          return { isValid: data.isValid, violations: data.violations };
+        }
+      }
+    ]
+  },
+  {
+    id: 'analysis',
+    label: 'Analysis & ML',
+    icon: <IconBrain size={24} />,
+    capabilities: [
+      {
+        id: 'auto-ml',
+        name: 'AutoML',
+        description: 'Automated machine learning with model selection and hyperparameter tuning',
+        icon: <IconRobot size={24} />,
+        category: 'analysis',
+        popularity: 96,
+        complexity: 'beginner',
+        tags: ['ml', 'automl', 'modeling'],
+        function: async (data: any) => {
+          // AutoML implementation
+          return { model: data.model, performance: data.performance };
+        }
+      },
+      {
+        id: 'clustering',
+        name: 'Smart Clustering',
+        description: 'Intelligent clustering with optimal cluster detection',
+        icon: <IconChartDots size={24} />,
+        category: 'analysis',
+        popularity: 88,
+        complexity: 'intermediate',
+        tags: ['clustering', 'unsupervised', 'groups'],
+        function: async (data: any) => {
+          // Clustering implementation
+          return { clusters: data.clusters, metrics: data.metrics };
+        }
+      },
+      {
+        id: 'forecasting',
+        name: 'Time Prophet',
+        description: 'Time series forecasting with automatic seasonality detection',
+        icon: <IconChartLine size={24} />,
+        category: 'analysis',
+        popularity: 92,
+        complexity: 'intermediate',
+        tags: ['timeseries', 'forecasting', 'prediction'],
+        function: async (data: any) => {
+          // Forecasting implementation
+          return { forecast: data.forecast, accuracy: data.accuracy };
+        }
+      }
+    ]
+  },
+  {
+    id: 'visualization',
+    label: 'Visualization',
+    icon: <IconChartBar size={24} />,
+    capabilities: [
+      {
+        id: 'smart-viz',
+        name: 'Smart Visualizer',
+        description: 'AI-powered automatic visualization selection and generation',
+        icon: <IconChartPie size={24} />,
+        category: 'visualization',
+        popularity: 94,
+        complexity: 'beginner',
+        tags: ['charts', 'plots', 'automatic'],
+        function: async (data: any) => {
+          // Smart visualization implementation
+          return { charts: data.charts, insights: data.insights };
+        }
+      },
+      {
+        id: 'interactive-dashboard',
+        name: 'Dashboard Builder',
+        description: 'Interactive dashboard creation with drag-and-drop widgets',
+        icon: <IconLayoutDashboard size={24} />,
+        category: 'visualization',
+        popularity: 90,
+        complexity: 'intermediate',
+        tags: ['dashboard', 'interactive', 'widgets'],
+        function: async (config: any) => {
+          // Dashboard implementation
+          return { dashboard: config.dashboard, widgets: config.widgets };
+        }
+      },
+      {
+        id: 'report-generator',
+        name: 'Report Generator',
+        description: 'Automated report generation with customizable templates',
+        icon: <IconFileReport size={24} />,
+        category: 'visualization',
+        popularity: 86,
+        complexity: 'intermediate',
+        tags: ['reports', 'templates', 'export'],
+        function: async (config: any) => {
+          // Report generation implementation
+          return { report: config.report, format: config.format };
+        }
+      }
+    ]
+  },
+  {
+    id: 'deployment',
+    label: 'Deployment',
+    icon: <IconRocket size={24} />,
+    capabilities: [
+      {
+        id: 'api-deployment',
+        name: 'API Publisher',
+        description: 'Deploy models and transformations as REST APIs',
+        icon: <IconWorld size={24} />,
+        category: 'deployment',
+        popularity: 92,
+        complexity: 'intermediate',
+        tags: ['api', 'deployment', 'serving'],
+        function: async (config: any) => {
+          // API deployment implementation
+          return { endpoint: config.endpoint, docs: config.docs };
+        }
+      },
+      {
+        id: 'batch-processor',
+        name: 'Batch Processor',
+        description: 'Schedule and manage batch processing jobs',
+        icon: <IconClock size={24} />,
+        category: 'deployment',
+        popularity: 88,
+        complexity: 'intermediate',
+        tags: ['batch', 'scheduling', 'jobs'],
+        function: async (config: any) => {
+          // Batch processor implementation
+          return { schedule: config.schedule, status: config.status };
+        }
+      },
+      {
+        id: 'monitoring',
+        name: 'Model Monitor',
+        description: 'Monitor model performance and data drift',
+        icon: <IconGauge size={24} />,
+        category: 'deployment',
+        popularity: 90,
+        complexity: 'advanced',
+        tags: ['monitoring', 'drift', 'performance'],
+        function: async (config: any) => {
+          // Monitoring implementation
+          return { metrics: config.metrics, alerts: config.alerts };
+        }
+      }
+    ]
+  }
+];
+
+function CapabilitiesStore({ opened, onClose, onAddCapability }: { 
+  opened: boolean; 
+  onClose: () => void;
+  onAddCapability: (capability: any) => void;
+}) {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<'popularity' | 'name' | 'complexity'>('popularity');
+  const [complexityFilter, setComplexityFilter] = useState<string[]>([]);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [hoveredCapability, setHoveredCapability] = useState<string | null>(null);
+  const [selectedCapability, setSelectedCapability] = useState<any>(null);
+  const theme = useMantineTheme();
+
+  const filteredCapabilities = CAPABILITY_CATEGORIES
+    .flatMap(cat => cat.capabilities)
+    .filter(cap => {
+      const matchesSearch = cap.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        cap.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        cap.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
+      
+      const matchesCategory = !selectedCategory || cap.category === selectedCategory;
+      const matchesComplexity = complexityFilter.length === 0 || complexityFilter.includes(cap.complexity);
+      
+      return matchesSearch && matchesCategory && matchesComplexity;
+    })
+    .sort((a, b) => {
+      if (sortBy === 'popularity') return b.popularity - a.popularity;
+      if (sortBy === 'complexity') {
+        const complexityOrder = { 'beginner': 1, 'intermediate': 2, 'advanced': 3 };
+        return complexityOrder[a.complexity as keyof typeof complexityOrder] - 
+               complexityOrder[b.complexity as keyof typeof complexityOrder];
+      }
+      return a.name.localeCompare(b.name);
+    });
+
+  const getCategoryColor = (categoryId: string) => {
+    switch (categoryId) {
+      case 'data-ingestion': return 'blue';
+      case 'preprocessing': return 'orange';
+      case 'analysis': return 'green';
+      case 'visualization': return 'violet';
+      case 'deployment': return 'red';
+      default: return 'gray';
+    }
+  };
+
+  const getComplexityColor = (complexity: string) => {
+    switch (complexity) {
+      case 'beginner': return 'green';
+      case 'intermediate': return 'yellow';
+      case 'advanced': return 'red';
+      default: return 'gray';
+    }
+  };
+
+  const handleCapabilitySelect = (capability: any) => {
+    setSelectedCapability(capability);
+    // Show details for 1.5 seconds before adding to workflow
+    setTimeout(() => {
+      onAddCapability(capability);
+      setSelectedCapability(null);
+      onClose();
+    }, 1500);
+  };
+
+  return (
+    <Modal
+      opened={opened}
+      onClose={onClose}
+      title={
+        <Group>
+          <ThemeIcon size="lg" radius="md" variant="gradient" gradient={{ from: 'indigo', to: 'cyan', deg: 45 }}>
+            <IconApps size={20} />
+          </ThemeIcon>
+          <div>
+            <Text fw={700} size="lg">Workflow Capabilities</Text>
+            <Text size="xs" c="dimmed">Discover and add powerful capabilities to your workflow</Text>
+          </div>
+        </Group>
+      }
+      size="90%"
+      radius="md"
+      padding="lg"
+      centered
+      overlayProps={{
+        backgroundOpacity: 0.55,
+        blur: 3,
+      }}
+    >
+      <Stack gap="md">
+        <Paper withBorder p="md" radius="md" shadow="xs">
+          <Group align="flex-start" grow>
+            <TextInput
+              placeholder="Search capabilities..."
+              leftSection={<IconSearch size={16} />}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.currentTarget.value)}
+              rightSection={
+                searchQuery ? (
+                  <ActionIcon size="sm" onClick={() => setSearchQuery('')} variant="subtle">
+                    <IconX size={14} />
+                  </ActionIcon>
+                ) : null
+              }
+            />
+            <Group grow>
+              <Select
+                placeholder="Sort by"
+                data={[
+                  { value: 'popularity', label: 'Most Popular' },
+                  { value: 'name', label: 'Alphabetical' },
+                  { value: 'complexity', label: 'Complexity Level' },
+                ]}
+                value={sortBy}
+                onChange={(value) => value && setSortBy(value as 'popularity' | 'name' | 'complexity')}
+                leftSection={<IconTrendingUp size={16} />}
+              />
+              <MultiSelect
+                placeholder="Complexity"
+                data={[
+                  { value: 'beginner', label: 'Beginner' },
+                  { value: 'intermediate', label: 'Intermediate' },
+                  { value: 'advanced', label: 'Advanced' }
+                ]}
+                value={complexityFilter}
+                onChange={setComplexityFilter}
+                leftSection={<IconFilter size={16} />}
+                clearable
+              />
+              <SegmentedControl
+                value={viewMode}
+                onChange={(value) => setViewMode(value as 'grid' | 'list')}
+                data={[
+                  { value: 'grid', label: 'Grid View' },
+                  { value: 'list', label: 'List View' },
+                ]}
+                size="sm"
+              />
+            </Group>
+          </Group>
+        </Paper>
+
+        <Group gap="xs" mb="xs">
+          <Button
+            variant={!selectedCategory ? 'filled' : 'light'}
+            onClick={() => setSelectedCategory(null)}
+            size="sm"
+            radius="xl"
+          >
+            All Categories
+          </Button>
+          {CAPABILITY_CATEGORIES.map((category) => (
+            <Button
+              key={category.id}
+              variant={selectedCategory === category.id ? 'filled' : 'light'}
+              onClick={() => setSelectedCategory(category.id)}
+              leftSection={category.icon}
+              size="sm"
+              color={getCategoryColor(category.id)}
+              radius="xl"
+            >
+              {category.label}
+            </Button>
+          ))}
+          {(selectedCategory || complexityFilter.length > 0 || searchQuery) && (
+            <Button
+              variant="subtle"
+              onClick={() => {
+                setSearchQuery('');
+                setSelectedCategory(null);
+                setComplexityFilter([]);
+              }}
+              size="sm"
+              leftSection={<IconX size={14} />}
+              radius="xl"
+            >
+              Reset Filters
+            </Button>
+          )}
+        </Group>
+
+        <ScrollArea h="calc(80vh - 220px)" offsetScrollbars>
+          <Stack gap="md">
+            {filteredCapabilities.length === 0 ? (
+              <Paper withBorder p="xl" radius="md" ta="center">
+                <Stack align="center" gap="md">
+                  <ThemeIcon size={60} radius="xl" color="gray" variant="light">
+                    <IconSearch size={30} />
+                  </ThemeIcon>
+                  <Text fw={500} size="lg">No capabilities found</Text>
+                  <Text size="sm" c="dimmed" maw={400} mx="auto">
+                    Try adjusting your search or filters to find what you're looking for.
+                  </Text>
+                  <Button variant="light" onClick={() => {
+                    setSearchQuery('');
+                    setSelectedCategory(null);
+                    setComplexityFilter([]);
+                  }}>
+                    Reset Filters
+                  </Button>
+                </Stack>
+              </Paper>
+            ) : viewMode === 'grid' ? (
+              <SimpleGrid cols={{ base: 1, sm: 2, md: 3, lg: 4 }} spacing="md">
+                {filteredCapabilities.map((capability) => (
+                  <Paper
+                    key={capability.id}
+                    shadow="sm"
+                    p="lg"
+                    radius="md"
+                    withBorder
+                    style={{
+                      cursor: 'pointer',
+                      transition: 'all 0.3s ease',
+                      transform: hoveredCapability === capability.id ? 'translateY(-5px)' : 'none',
+                      boxShadow: hoveredCapability === capability.id ? theme.shadows.md : theme.shadows.sm,
+                      borderColor: hoveredCapability === capability.id ? 
+                        theme.colors[getCategoryColor(capability.category)][5] : undefined,
+                      borderWidth: hoveredCapability === capability.id ? '2px' : '1px',
+                      position: 'relative',
+                      overflow: 'hidden',
+                    }}
+                    onClick={() => handleCapabilitySelect(capability)}
+                    onMouseEnter={() => setHoveredCapability(capability.id)}
+                    onMouseLeave={() => setHoveredCapability(null)}
+                  >
+                    {selectedCapability?.id === capability.id && (
+                      <Box 
+                        style={{ 
+                          position: 'absolute', 
+                          top: 0, 
+                          left: 0, 
+                          right: 0, 
+                          bottom: 0, 
+                          background: 'rgba(255,255,255,0.9)',
+                          zIndex: 10,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          padding: '20px',
+                        }}
+                      >
+                        <ThemeIcon 
+                          size={60} 
+                          radius="xl" 
+                          color={getCategoryColor(capability.category)}
+                          variant="light"
+                          mb="md"
+                        >
+                          <IconCheck size={30} />
+                        </ThemeIcon>
+                        <Text fw={700} ta="center" mb="xs">Adding to Workflow</Text>
+                        <Progress 
+                          value={100} 
+                          color={getCategoryColor(capability.category)} 
+                          striped 
+                          animated 
+                          size="sm" 
+                          w="80%" 
+                        />
+                      </Box>
+                    )}
+                    
+                    {/* Category indicator */}
+                    <Box 
+                      style={{ 
+                        position: 'absolute', 
+                        top: 0, 
+                        right: 0, 
+                        width: '30px', 
+                        height: '30px', 
+                        background: theme.colors[getCategoryColor(capability.category)][5],
+                        clipPath: 'polygon(100% 0, 0 0, 100% 100%)',
+                      }} 
+                    />
+                    
+                    <Stack gap="md" align="center">
+                      <ThemeIcon
+                        size={60}
+                        radius="xl"
+                        variant="light"
+                        color={getCategoryColor(capability.category)}
+                        style={{ marginBottom: 5 }}
+                      >
+                        {capability.icon}
+                      </ThemeIcon>
+                      <Text fw={700} ta="center" size="lg">{capability.name}</Text>
+                      <Text size="sm" c="dimmed" ta="center" lineClamp={2}>
+                        {capability.description}
+                      </Text>
+                      <Group gap="xs" justify="center">
+                        <Badge 
+                          color="blue" 
+                          leftSection={<IconStar size={12} />}
+                          size="lg"
+                          radius="sm"
+                          variant="light"
+                        >
+                          {capability.popularity}% Popular
+                        </Badge>
+                        <Badge
+                          color={getComplexityColor(capability.complexity)}
+                          size="lg"
+                          radius="sm"
+                          variant="light"
+                        >
+                          {capability.complexity}
+                        </Badge>
+                      </Group>
+                      <Group gap="xs" wrap="wrap" justify="center">
+                        {capability.tags.map((tag) => (
+                          <Badge key={tag} size="sm" variant="dot" radius="sm">
+                            {tag}
+                          </Badge>
+                        ))}
+                      </Group>
+                      <Button 
+                        fullWidth 
+                        variant="light" 
+                        color={getCategoryColor(capability.category)}
+                        leftSection={<IconPlus size={14} />}
+                        radius="md"
+                      >
+                        Add to Workflow
+                      </Button>
+                    </Stack>
+                  </Paper>
+                ))}
+              </SimpleGrid>
+            ) : (
+              <Table striped highlightOnHover withTableBorder>
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>Name</Table.Th>
+                    <Table.Th>Category</Table.Th>
+                    <Table.Th>Description</Table.Th>
+                    <Table.Th>Complexity</Table.Th>
+                    <Table.Th>Popularity</Table.Th>
+                    <Table.Th>Action</Table.Th>
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                  {filteredCapabilities.map((capability) => (
+                    <Table.Tr 
+                      key={capability.id}
+                      style={{ 
+                        cursor: 'pointer',
+                        background: hoveredCapability === capability.id ? 
+                          `${theme.colors[getCategoryColor(capability.category)][0]}` : undefined,
+                        position: 'relative',
+                      }}
+                      onMouseEnter={() => setHoveredCapability(capability.id)}
+                      onMouseLeave={() => setHoveredCapability(null)}
+                    >
+                      <Table.Td>
+                        <Group gap="sm">
+                          <ThemeIcon
+                            size="md"
+                            radius="xl"
+                            color={getCategoryColor(capability.category)}
+                          >
+                            {capability.icon}
+                          </ThemeIcon>
+                          <Text fw={500}>{capability.name}</Text>
+                        </Group>
+                      </Table.Td>
+                      <Table.Td>
+                        <Badge color={getCategoryColor(capability.category)} variant="light" radius="sm">
+                          {CAPABILITY_CATEGORIES.find(cat => cat.id === capability.category)?.label}
+                        </Badge>
+                      </Table.Td>
+                      <Table.Td>
+                        <Text size="sm" lineClamp={2}>{capability.description}</Text>
+                      </Table.Td>
+                      <Table.Td>
+                        <Badge color={getComplexityColor(capability.complexity)} variant="light" radius="sm">
+                          {capability.complexity}
+                        </Badge>
+                      </Table.Td>
+                      <Table.Td>
+                        <Group gap="xs">
+                          <RingProgress
+                            size={36}
+                            thickness={4}
+                            roundCaps
+                            sections={[{ value: capability.popularity, color: 'blue' }]}
+                            label={
+                              <Text size="xs" ta="center" fw={700}>{capability.popularity}</Text>
+                            }
+                          />
+                        </Group>
+                      </Table.Td>
+                      <Table.Td>
+                        <Button
+                          size="sm"
+                          variant="light"
+                          leftSection={<IconPlus size={14} />}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleCapabilitySelect(capability);
+                          }}
+                          radius="md"
+                          color={getCategoryColor(capability.category)}
+                        >
+                          Add
+                        </Button>
+                      </Table.Td>
+                    </Table.Tr>
+                  ))}
+                </Table.Tbody>
+              </Table>
+            )}
+          </Stack>
+        </ScrollArea>
+
+        <Group justify="space-between" pt="xs">
+          <Group gap="xs">
+            <Text size="sm" c="dimmed">
+              {filteredCapabilities.length} capabilities found
+            </Text>
+            {selectedCategory && (
+              <Badge color={getCategoryColor(selectedCategory)} variant="light">
+                {CAPABILITY_CATEGORIES.find(cat => cat.id === selectedCategory)?.label}
+              </Badge>
+            )}
+          </Group>
+          <Button variant="default" onClick={onClose} radius="md">Close</Button>
+        </Group>
+      </Stack>
+    </Modal>
+  );
+}
+
+interface NodeData {
+  label: string;
+  icon?: React.ReactNode;
+  description?: string;
+  type?: string;
+  capabilities?: Array<{
+    id: string;
+    label: string;
+    description?: string;
+    function: (input: any) => Promise<any>;
+  }>;
+  tags?: string[];
+  complexity?: string;
+  state?: {
+    status: 'idle' | 'learning' | 'working' | 'completed' | 'error';
+    progress: number;
+    results?: any;
+    insights?: string[];
+  };
+}
+
+// Move nodeTypes outside the component to prevent recreation on every render
+const CustomNode = ({ data }: { data: NodeData }) => {
+  const theme = useMantineTheme();
+  const [showCapabilities, setShowCapabilities] = useState(false);
+  const [showFullPage, setShowFullPage] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  
+  // Get node-specific styles based on type
+  const getNodeStyles = () => {
+    const baseStyles = {
+      padding: '16px',
+      borderRadius: '12px',
+      minWidth: '240px',
+      background: theme.white,
+      boxShadow: isHovered ? theme.shadows.md : theme.shadows.sm,
+      border: '2px solid',
+      transition: 'all 0.2s ease',
+      cursor: 'pointer',
+      transform: isHovered ? 'translateY(-3px)' : 'translateY(0)',
+    };
+
+    switch (data.type) {
+      case 'data-ingestion':
+        return {
+          ...baseStyles,
+          borderColor: theme.colors.blue[4],
+          background: `linear-gradient(45deg, ${theme.colors.blue[0]}, ${theme.white})`,
+        };
+      case 'preprocessing':
+        return {
+          ...baseStyles,
+          borderColor: theme.colors.orange[4],
+          background: `linear-gradient(45deg, ${theme.colors.orange[0]}, ${theme.white})`,
+        };
+      case 'analysis':
+        return {
+          ...baseStyles,
+          borderColor: theme.colors.green[4],
+          background: `linear-gradient(45deg, ${theme.colors.green[0]}, ${theme.white})`,
+        };
+      case 'visualization':
+        return {
+          ...baseStyles,
+          borderColor: theme.colors.violet[4],
+          background: `linear-gradient(45deg, ${theme.colors.violet[0]}, ${theme.white})`,
+        };
+      default:
+        return {
+          ...baseStyles,
+          borderColor: theme.colors.gray[4],
+          background: theme.white,
+        };
+    }
+  };
+
+  const getNodeColor = () => {
+    switch (data.type) {
+      case 'data-ingestion': return theme.colors.blue[6];
+      case 'preprocessing': return theme.colors.orange[6];
+      case 'analysis': return theme.colors.green[6];
+      case 'visualization': return theme.colors.violet[6];
+      default: return theme.colors.gray[6];
+    }
+  };
+
+  const handleNodeClick = () => {
+    setShowCapabilities(true);
+  };
+
+  return (
+    <>
+      <div 
+        style={getNodeStyles()}
+        onClick={handleNodeClick}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      >
+        <Handle 
+          type="target" 
+          position={Position.Top} 
+          id="top" 
+          style={{ 
+            background: getNodeColor(),
+            width: 10,
+            height: 10,
+            border: `2px solid ${theme.white}`,
+          }}
+        />
+        <Handle 
+          type="target" 
+          position={Position.Left} 
+          id="left" 
+          style={{ 
+            background: getNodeColor(),
+            width: 10,
+            height: 10,
+            border: `2px solid ${theme.white}`,
+          }}
+        />
+        
+        <Stack gap="xs">
+          <Group gap="xs" justify="space-between">
+            <Group gap="xs">
+              <ThemeIcon 
+                size="md" 
+                radius="md" 
+                color={data.type === 'data-ingestion' ? 'blue' : 
+                       data.type === 'preprocessing' ? 'orange' : 
+                       data.type === 'analysis' ? 'green' : 
+                       data.type === 'visualization' ? 'violet' : 'gray'}
+              >
+                {data.icon}
+              </ThemeIcon>
+              <Text size="sm" fw={600}>{data.label}</Text>
+            </Group>
+            <Menu shadow="md" width={200}>
+              <Menu.Target>
+                <ActionIcon 
+                  variant="subtle" 
+                  size="sm"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <IconDots size={16} />
+                </ActionIcon>
+              </Menu.Target>
+              <Menu.Dropdown>
+                <Menu.Item
+                  leftSection={<IconEye size={14} />}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowFullPage(true);
+                  }}
+                >
+                  View Details
+                </Menu.Item>
+                <Menu.Item
+                  leftSection={<IconSettings size={14} />}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowCapabilities(true);
+                  }}
+                >
+                  Configure
+                </Menu.Item>
+                <Menu.Item
+                  leftSection={<IconPlayerPlay size={14} />}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    // Execute node
+                    notifications.show({
+                      title: 'Node Execution',
+                      message: `Executing ${data.label}...`,
+                      color: 'blue',
+                    });
+                  }}
+                >
+                  Execute Node
+                </Menu.Item>
+                {data.type === 'data-ingestion' && (
+                  <Menu.Item
+                    leftSection={<IconUpload size={14} />}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      // Handle data upload
+                    }}
+                  >
+                    Upload Data
+                  </Menu.Item>
+                )}
+              </Menu.Dropdown>
+            </Menu>
+          </Group>
+
+          {data.description && (
+            <Text size="xs" c="dimmed" lineClamp={2}>
+              {data.description}
+            </Text>
+          )}
+
+          {/* Status indicators and badges */}
+          <Group gap="xs" wrap="wrap">
+            {data.capabilities?.slice(0, 3).map((capability) => (
+              <Badge 
+                key={capability.id} 
+                size="xs" 
+                variant="dot"
+                color={data.type === 'data-ingestion' ? 'blue' : 
+                       data.type === 'preprocessing' ? 'orange' : 
+                       data.type === 'analysis' ? 'green' : 
+                       data.type === 'visualization' ? 'violet' : 'gray'}
+                styles={{
+                  root: {
+                    textTransform: 'none',
+                  },
+                }}
+              >
+                {capability.label}
+              </Badge>
+            ))}
+            {data.capabilities && data.capabilities.length > 3 && (
+              <Badge 
+                size="xs" 
+                variant="outline"
+                color="gray"
+              >
+                +{data.capabilities.length - 3} more
+              </Badge>
+            )}
+          </Group>
+
+          {/* Progress indicator if node is processing */}
+          {data.state?.status === 'working' && (
+            <Progress 
+              value={data.state.progress || 0} 
+              size="xs" 
+              color={
+                data.type === 'data-ingestion' ? 'blue' :
+                data.type === 'preprocessing' ? 'orange' :
+                data.type === 'analysis' ? 'green' :
+                data.type === 'visualization' ? 'violet' :
+                'gray'
+              }
+              striped
+              animated
+            />
+          )}
+
+          {/* Status indicator */}
+          {data.state?.status && (
+            <Group gap="xs" align="center">
+              <Box 
+                style={{ 
+                  width: 8, 
+                  height: 8, 
+                  borderRadius: '50%', 
+                  background: data.state.status === 'completed' ? theme.colors.green[6] :
+                              data.state.status === 'error' ? theme.colors.red[6] :
+                              data.state.status === 'working' ? theme.colors.blue[6] :
+                              theme.colors.gray[6]
+                }} 
+              />
+              <Text size="xs" c="dimmed">
+                {data.state.status === 'completed' ? 'Completed' :
+                 data.state.status === 'error' ? 'Error' :
+                 data.state.status === 'working' ? 'Processing...' :
+                 'Ready'}
+              </Text>
+            </Group>
+          )}
+        </Stack>
+
+        <Handle 
+          type="source" 
+          position={Position.Right} 
+          id="right" 
+          style={{ 
+            background: getNodeColor(),
+            width: 10,
+            height: 10,
+            border: `2px solid ${theme.white}`,
+          }}
+        />
+        <Handle 
+          type="source" 
+          position={Position.Bottom} 
+          id="bottom" 
+          style={{ 
+            background: getNodeColor(),
+            width: 10,
+            height: 10,
+            border: `2px solid ${theme.white}`,
+          }}
+        />
+      </div>
+
+      {/* Node Capabilities Modal */}
+      <Modal
+        opened={showCapabilities}
+        onClose={() => setShowCapabilities(false)}
+        title={
+          <Group>
+            <ThemeIcon 
+              size="md" 
+              radius="md" 
+              color={data.type === 'data-ingestion' ? 'blue' : 
+                     data.type === 'preprocessing' ? 'orange' : 
+                     data.type === 'analysis' ? 'green' : 
+                     data.type === 'visualization' ? 'violet' : 'gray'}
+            >
+              {data.icon}
+            </ThemeIcon>
+            <Text fw={600}>{data.label} Configuration</Text>
+          </Group>
+        }
+        size="lg"
+      >
+        <Tabs defaultValue="capabilities">
+          <Tabs.List mb="md">
+            <Tabs.Tab value="capabilities" leftSection={<IconRocket size={14} />}>
+              Capabilities
+            </Tabs.Tab>
+            <Tabs.Tab value="settings" leftSection={<IconSettings size={14} />}>
+              Settings
+            </Tabs.Tab>
+            <Tabs.Tab value="code" leftSection={<IconCode size={14} />}>
+              Custom Code
+            </Tabs.Tab>
+          </Tabs.List>
+
+          <Tabs.Panel value="capabilities">
+            <Stack gap="md">
+              {/* Data Ingestion specific capabilities */}
+              {data.type === 'data-ingestion' && (
+                <>
+                  <Card withBorder>
+                    <Stack gap="md">
+                      <Group justify="space-between">
+                        <Group gap="xs">
+                          <IconUpload size={20} />
+                          <Text fw={500}>Upload Data</Text>
+                        </Group>
+                        <Badge color="blue">Primary Capability</Badge>
+                      </Group>
+                      <Dropzone
+                        onDrop={(files: FileWithPath[]) => {
+                          console.log('Files dropped:', files);
+                          // Handle file upload
+                          notifications.show({
+                            title: 'File Upload',
+                            message: `Uploading ${files[0].name}...`,
+                            color: 'blue',
+                          });
+                        }}
+                        accept={['text/csv', 'application/json', 'application/vnd.ms-excel']}
+                        maxSize={5 * 1024 ** 2} // 5MB
+                      >
+                        <Group justify="center" gap="xl" mih={220} style={{ pointerEvents: 'none' }}>
+                          <Stack align="center" gap="xs">
+                            <IconUpload size={32} stroke={1.5} />
+                            <Text size="sm" inline>
+                              Drag files here or click to select
+                            </Text>
+                            <Text size="xs" c="dimmed" inline>
+                              Supported formats: CSV, JSON, Excel (up to 5MB)
+                            </Text>
+                          </Stack>
+                        </Group>
+                      </Dropzone>
+                    </Stack>
+                  </Card>
+
+                  <Card withBorder>
+                    <Stack gap="md">
+                      <Group justify="space-between">
+                        <Group gap="xs">
+                          <IconDatabase size={20} />
+                          <Text fw={500}>Connect to Database</Text>
+                        </Group>
+                        <Badge color="blue">Primary Capability</Badge>
+                      </Group>
+                      <SimpleGrid cols={2}>
+                        <Button variant="light" leftSection={<IconBrandMysql size={20} />}>MySQL</Button>
+                        <Button variant="light" leftSection={<IconDatabase size={20} />}>PostgreSQL</Button>
+                        <Button variant="light" leftSection={<IconBrandMongodb size={20} />}>MongoDB</Button>
+                        <Button variant="light" leftSection={<IconApi size={20} />}>REST API</Button>
+                      </SimpleGrid>
+                    </Stack>
+                  </Card>
+                </>
+              )}
+
+              {/* Preprocessing specific capabilities */}
+              {data.type === 'preprocessing' && (
+                <>
+                  <Card withBorder>
+                    <Stack gap="md">
+                      <Group justify="space-between">
+                        <Group gap="xs">
+                          <IconWand size={20} />
+                          <Text fw={500}>Auto Clean</Text>
+                        </Group>
+                        <Badge color="orange">Primary Capability</Badge>
+                      </Group>
+                      <Text size="sm" c="dimmed">
+                        Automatically detect and clean data issues including missing values,
+                        outliers, and inconsistent formats.
+                      </Text>
+                      <Button variant="light" leftSection={<IconWand size={16} />}>
+                        Start Auto Clean
+                      </Button>
+                    </Stack>
+                  </Card>
+
+                  <Card withBorder>
+                    <Stack gap="md">
+                      <Group justify="space-between">
+                        <Group gap="xs">
+                          <IconTools size={20} />
+                          <Text fw={500}>Data Validation</Text>
+                        </Group>
+                        <Badge color="orange">Primary Capability</Badge>
+                      </Group>
+                      <Text size="sm" c="dimmed">
+                        Set up validation rules and data quality checks.
+                      </Text>
+                      <Button variant="light" leftSection={<IconTools size={16} />}>
+                        Configure Validation
+                      </Button>
+                    </Stack>
+                  </Card>
+                </>
+              )}
+
+              {/* Analysis specific capabilities */}
+              {data.type === 'analysis' && (
+                <>
+                  <Card withBorder>
+                    <Stack gap="md">
+                      <Group justify="space-between">
+                        <Group gap="xs">
+                          <IconBrain size={20} />
+                          <Text fw={500}>AutoML</Text>
+                        </Group>
+                        <Badge color="green">Primary Capability</Badge>
+                      </Group>
+                      <Text size="sm" c="dimmed">
+                        Automatically select and train the best machine learning model for your data.
+                      </Text>
+                      <Button variant="light" leftSection={<IconBrain size={16} />}>
+                        Start AutoML
+                      </Button>
+                    </Stack>
+                  </Card>
+
+                  <Card withBorder>
+                    <Stack gap="md">
+                      <Group justify="space-between">
+                        <Group gap="xs">
+                          <IconChartBar size={20} />
+                          <Text fw={500}>Model Evaluation</Text>
+                        </Group>
+                        <Badge color="green">Primary Capability</Badge>
+                      </Group>
+                      <Text size="sm" c="dimmed">
+                        Evaluate model performance with detailed metrics and visualizations.
+                      </Text>
+                      <Button variant="light" leftSection={<IconChartBar size={16} />}>
+                        View Evaluation
+                      </Button>
+                    </Stack>
+                  </Card>
+                </>
+              )}
+
+              {/* Visualization specific capabilities */}
+              {data.type === 'visualization' && (
+                <>
+                  <Card withBorder>
+                    <Stack gap="md">
+                      <Group justify="space-between">
+                        <Group gap="xs">
+                          <IconChartPie size={20} />
+                          <Text fw={500}>Smart Visualizations</Text>
+                        </Group>
+                        <Badge color="violet">Primary Capability</Badge>
+                      </Group>
+                      <Text size="sm" c="dimmed">
+                        Automatically generate the most insightful visualizations for your data.
+                      </Text>
+                      <Button variant="light" leftSection={<IconChartPie size={16} />}>
+                        Generate Visualizations
+                      </Button>
+                    </Stack>
+                  </Card>
+
+                  <Card withBorder>
+                    <Stack gap="md">
+                      <Group justify="space-between">
+                        <Group gap="xs">
+                          <IconLayoutDashboard size={20} />
+                          <Text fw={500}>Interactive Dashboard</Text>
+                        </Group>
+                        <Badge color="violet">Primary Capability</Badge>
+                      </Group>
+                      <Text size="sm" c="dimmed">
+                        Create interactive dashboards with customizable widgets.
+                      </Text>
+                      <Button variant="light" leftSection={<IconLayoutDashboard size={16} />}>
+                        Build Dashboard
+                      </Button>
+                    </Stack>
+                  </Card>
+                </>
+              )}
+
+              {/* Generic capabilities from node data */}
+              {data.capabilities?.map((capability) => (
+                <Card key={capability.id} withBorder>
+                  <Stack gap="md">
+                    <Group justify="space-between">
+                      <Group gap="xs">
+                        <IconStar size={20} />
+                        <Text fw={500}>{capability.label}</Text>
+                      </Group>
+                      <Badge>Additional Capability</Badge>
+                    </Group>
+                    {capability.description && (
+                      <Text size="sm" c="dimmed">{capability.description}</Text>
+                    )}
+                    <Button 
+                      variant="light" 
+                      leftSection={<IconRocket size={16} />}
+                      onClick={() => {
+                        if (capability.function) {
+                          capability.function({}).then(result => {
+                            console.log('Capability executed:', result);
+                            notifications.show({
+                              title: 'Capability Executed',
+                              message: `${capability.label} executed successfully`,
+                              color: 'green',
+                            });
+                          });
+                        }
+                      }}
+                    >
+                      Execute
+                    </Button>
+                  </Stack>
+                </Card>
+              ))}
+            </Stack>
+          </Tabs.Panel>
+
+          <Tabs.Panel value="settings">
+            <Stack gap="md">
+              <TextInput
+                label="Node Name"
+                placeholder="Enter node name"
+                defaultValue={data.label}
+              />
+              <Textarea
+                label="Description"
+                placeholder="Enter node description"
+                defaultValue={data.description}
+                minRows={3}
+              />
+              <Select
+                label="Execution Priority"
+                placeholder="Select priority"
+                defaultValue="medium"
+                data={[
+                  { value: 'high', label: 'High' },
+                  { value: 'medium', label: 'Medium' },
+                  { value: 'low', label: 'Low' },
+                ]}
+              />
+              <Switch
+                label="Cache Results"
+                defaultChecked
+              />
+              <Switch
+                label="Auto-execute on workflow run"
+                defaultChecked
+              />
+              <Group justify="flex-end" mt="md">
+                <Button variant="light">Reset</Button>
+                <Button>Save Settings</Button>
+              </Group>
+            </Stack>
+          </Tabs.Panel>
+
+          <Tabs.Panel value="code">
+            <Stack gap="md">
+              <Text size="sm">
+                Write custom code to transform data or implement custom logic.
+              </Text>
+              <Paper withBorder p="xs">
+                <pre style={{ margin: 0 }}>
+                  <code>
+{`# Example Python code
+import pandas as pd
+
+def process(data):
+    # Your custom processing logic here
+    return data.dropna()
+`}
+                  </code>
+                </pre>
+              </Paper>
+              <Group justify="flex-end" mt="md">
+                <Button variant="light">Reset</Button>
+                <Button>Save Code</Button>
+              </Group>
+            </Stack>
+          </Tabs.Panel>
+        </Tabs>
+      </Modal>
+
+      {/* Full Page Modal */}
+      <Modal
+        opened={showFullPage}
+        onClose={() => setShowFullPage(false)}
+        size="xl"
+        title={
+          <Group>
+            <ThemeIcon 
+              size="md" 
+              radius="md" 
+              color={data.type === 'data-ingestion' ? 'blue' : 
+                     data.type === 'preprocessing' ? 'orange' : 
+                     data.type === 'analysis' ? 'green' : 
+                     data.type === 'visualization' ? 'violet' : 'gray'}
+            >
+              {data.icon}
+            </ThemeIcon>
+            <Text fw={600}>{data.label} Details</Text>
+          </Group>
+        }
+      >
+        <Tabs defaultValue="overview">
+          <Tabs.List mb="md">
+            <Tabs.Tab value="overview" leftSection={<IconEye size={14} />}>
+              Overview
+            </Tabs.Tab>
+            <Tabs.Tab value="data" leftSection={<IconDatabase size={14} />}>
+              Data Preview
+            </Tabs.Tab>
+            <Tabs.Tab value="logs" leftSection={<IconCode size={14} />}>
+              Execution Logs
+            </Tabs.Tab>
+          </Tabs.List>
+
+          <Tabs.Panel value="overview">
+            <Stack gap="md">
+              <Card withBorder>
+                <Group gap="md">
+                  <ThemeIcon 
+                    size="xl" 
+                    radius="md" 
+                    color={data.type === 'data-ingestion' ? 'blue' : 
+                           data.type === 'preprocessing' ? 'orange' : 
+                           data.type === 'analysis' ? 'green' : 
+                           data.type === 'visualization' ? 'violet' : 'gray'}
+                  >
+                    {data.icon}
+                  </ThemeIcon>
+                  <div>
+                    <Text fw={700} size="lg">{data.label}</Text>
+                    <Text c="dimmed">{data.description}</Text>
+                  </div>
+                </Group>
+              </Card>
+
+              <SimpleGrid cols={3}>
+                <Card withBorder>
+                  <Stack gap="xs">
+                    <Text fw={500}>Status</Text>
+                    <Badge 
+                      size="lg" 
+                      color={
+                        data.state?.status === 'completed' ? 'green' :
+                        data.state?.status === 'error' ? 'red' :
+                        data.state?.status === 'working' ? 'blue' :
+                        'gray'
+                      }
+                    >
+                      {data.state?.status === 'completed' ? 'Completed' :
+                       data.state?.status === 'error' ? 'Error' :
+                       data.state?.status === 'working' ? 'Processing' :
+                       'Ready'}
+                    </Badge>
+                  </Stack>
+                </Card>
+                <Card withBorder>
+                  <Stack gap="xs">
+                    <Text fw={500}>Type</Text>
+                    <Badge 
+                      size="lg" 
+                      color={
+                        data.type === 'data-ingestion' ? 'blue' :
+                        data.type === 'preprocessing' ? 'orange' :
+                        data.type === 'analysis' ? 'green' :
+                        data.type === 'visualization' ? 'violet' :
+                        'gray'
+                      }
+                    >
+                      {data.type}
+                    </Badge>
+                  </Stack>
+                </Card>
+                <Card withBorder>
+                  <Stack gap="xs">
+                    <Text fw={500}>Last Execution</Text>
+                    <Text>2 minutes ago</Text>
+                  </Stack>
+                </Card>
+              </SimpleGrid>
+
+              <Card withBorder>
+                <Stack gap="xs">
+                  <Text fw={500}>Capabilities</Text>
+                  <SimpleGrid cols={2}>
+                    {data.capabilities?.map((capability) => (
+                      <Group key={capability.id} gap="xs">
+                        <IconStar size={16} />
+                        <Text>{capability.label}</Text>
+                      </Group>
+                    ))}
+                  </SimpleGrid>
+                </Stack>
+              </Card>
+            </Stack>
+          </Tabs.Panel>
+
+          <Tabs.Panel value="data">
+            <Stack gap="md">
+              <Text>Data preview will be shown here when the node is executed.</Text>
+              <Paper withBorder p="md">
+                <Text ta="center" c="dimmed">No data available yet. Execute the node to see data preview.</Text>
+              </Paper>
+            </Stack>
+          </Tabs.Panel>
+
+          <Tabs.Panel value="logs">
+            <Stack gap="md">
+              <Text>Execution logs will be shown here when the node is executed.</Text>
+              <Paper withBorder p="md" style={{ maxHeight: '400px', overflow: 'auto' }}>
+                <Text ta="center" c="dimmed">No logs available yet. Execute the node to see logs.</Text>
+              </Paper>
+            </Stack>
+          </Tabs.Panel>
+        </Tabs>
+      </Modal>
+    </>
+  );
+};
+
+// Define nodeTypes outside component
+const nodeTypes = {
+  default: memo(CustomNode) // Memoize the node component
+};
+
+export const WorkflowPage: React.FC = () => {
+  const { colorScheme } = useMantineColorScheme();
+  const theme = useMantineTheme();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  
+  // Use the WorkflowContext instead of local state
+  const { 
+    nodes, 
+    edges, 
+    selectedNode,
+    workflowId,
+    workflowName,
+    workflowDescription,
+    isExecuting,
+    executionProgress,
+    setNodes,
+    setEdges,
+    addNode,
+    updateNodeData,
+    selectNode,
+    deleteNode,
+    saveWorkflow,
+    loadWorkflow,
+    executeWorkflow,
+    setWorkflowName,
+    setWorkflowDescription,
+    createNewWorkflow
+  } = useWorkflow();
+  
+  // Local UI state
+  const [opened, setOpened] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [showAgentTopology, setShowAgentTopology] = useState(false);
+  const [activeTab, setActiveTab] = useState('workflow');
+  const [saveModalOpen, setSaveModalOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [executionResults, setExecutionResults] = useState<any>(null);
+  const [executionInterval, setExecutionInterval] = useState<NodeJS.Timeout | null>(null);
+  
+  const { id } = useParams<{ id: string }>();
+  
+  // Function to close the save modal
+  const closeSaveModal = () => {
+    setSaveModalOpen(false);
+  };
+  
+  // Function to load a workflow from the backend
+  useEffect(() => {
+    if (id) {
+      loadWorkflow(id);
+    }
+  }, [id, loadWorkflow]);
+  
+  // Function to handle save workflow button click
+  const handleSaveWorkflow = async () => {
+    setIsSaving(true);
+    try {
+      await saveWorkflow();
+      setSaveModalOpen(false);
+    } catch (error) {
+      console.error('Error saving workflow:', error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+  
+  // Handle execute workflow button click
+  const handleExecute = async () => {
+    // If workflow is not saved yet, open save modal first
+    if (!workflowId) {
+      setSaveModalOpen(true);
+      return;
+    }
+    
+    try {
+      // Use the executeWorkflow function from the context
+      await executeWorkflow();
+    } catch (error: any) {
+      console.error('Error executing workflow:', error);
+      notifications.show({
+        title: 'Error',
+        message: error.message || 'Failed to execute workflow',
+        color: 'red',
+      });
+    }
+  };
+  
+  // Handle stop execution button click
+  const handleStop = async () => {
+    if (executionInterval) {
+      clearInterval(executionInterval);
+      setExecutionInterval(null);
+    }
+    
+    if (workflowId) {
+      try {
+        await api.post(`/workflow/stop/${workflowId}`);
+        
+        notifications.show({
+          title: 'Info',
+          message: 'Workflow execution stopped',
+          color: 'blue',
+        });
+      } catch (error: any) {
+        console.error('Error stopping workflow:', error);
+        
+        notifications.show({
+          title: 'Error',
+          message: error.message || 'Failed to stop workflow execution',
+          color: 'red',
+        });
+      }
+    }
+  };
+  
+  // Handle node changes
+  const onNodesChange = useCallback(
+    (changes: NodeChange[]) => {
+      setNodes(applyNodeChanges(changes, nodes as any) as any);
+    },
+    [nodes, setNodes]
+  );
+
+  // Handle edge changes
+  const onEdgesChange = useCallback(
+    (changes: EdgeChange[]) => {
+      setEdges(applyEdgeChanges(changes, edges) as any);
+    },
+    [edges, setEdges]
+  );
+
+  // Handle connection changes
+  const onConnect = useCallback(
+    (connection: Connection) => {
+      setEdges(addEdge(connection, edges));
+    },
+    [edges, setEdges]
+  );
+
+  // Handle adding a capability
+  const handleAddCapability = (capability: any) => {
+    // Calculate position based on viewport center
+    const centerX = window.innerWidth / 2;
+    const centerY = window.innerHeight / 2;
+    
+    // Add some random offset to avoid nodes stacking
+    const offsetX = (Math.random() - 0.5) * 300;
+    const offsetY = (Math.random() - 0.5) * 200;
+
+    const position = { 
+      x: centerX + offsetX - 400, // Adjust for sidebar width
+      y: centerY + offsetY - 100  // Adjust for header height
+    };
+    
+    // Use the nodeType that best matches the capability category
+    let nodeType: NodeType = 'datasetLoader'; // Default
+    
+    switch(capability.category) {
+      case 'data-ingestion':
+        nodeType = 'datasetLoader';
+        break;
+      case 'preprocessing':
+        nodeType = 'dataBinning';
+        break;
+      case 'analysis':
+        nodeType = 'edaAnalysis';
+        break;
+      case 'visualization':
+        nodeType = 'reportGenerator';
+        break;
+      default:
+        nodeType = 'datasetLoader';
+    }
+    
+    // Add the node using the context function
+    addNode(nodeType, position);
+    
+    setShowCapabilitiesStore(false);
+
+    notifications.show({
+      title: 'Success',
+      message: `Added ${capability.name} node to the workflow`,
+      color: 'green',
+    });
+  };
+
+  // Function to handle dataset upload
+  const handleDataSourceUpload = async (file: File) => {
+    try {
+      // Create FormData object
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('name', file.name);
+      formData.append('description', `Uploaded on ${new Date().toLocaleString()}`);
+      
+      // Upload the dataset
+      const response = await datasetsApi.create(formData);
+      
+      if (response.data) {
+        const dataset = response.data;
+        
+        // Create a position for the new node
+        const position = { 
+          x: 100, 
+          y: 100 
+        };
+        
+        // Add a dataset loader node
+        addNode('datasetLoader', position);
+        
+        notifications.show({
+          title: 'Success',
+          message: `Dataset "${dataset.name}" uploaded successfully`,
+          color: 'green',
+        });
+      }
+    } catch (error: any) {
+      console.error('Error uploading dataset:', error);
+      
+      notifications.show({
+        title: 'Error',
+        message: error.message || 'Failed to upload dataset',
+        color: 'red',
+      });
+    }
+  };
+
+  return (
+    <ReactFlowProvider>
+      <AppShell
+        padding="md"
+        header={{ height: 60 }}
+        navbar={{ width: 300, breakpoint: 'sm', collapsed: { mobile: !opened } }}
+      >
+        <AppShell.Header>
+          <Group h="100%" px="md" justify="space-between">
+            <Group>
+              <Title order={3}>Workflow Editor</Title>
+              {workflowName && <Text c="dimmed">- {workflowName}</Text>}
+            </Group>
+            
+            <Group>
+              <Tooltip label="Save Workflow">
+                <Button
+                  variant="light"
+                  leftSection={<IconDeviceFloppy size={16} />}
+                  onClick={() => setSaveModalOpen(true)}
+                  loading={isSaving}
+                >
+                  Save
+                </Button>
+              </Tooltip>
+              
+              <Tooltip label={isExecuting ? "Stop Execution" : "Execute Workflow"}>
+                <Button
+                  color={isExecuting ? "red" : "green"}
+                  leftSection={
+                    isExecuting ? <IconPlayerStop size={16} /> : <IconPlayerPlay size={16} />
+                  }
+                  onClick={isExecuting ? handleStop : handleExecute}
+                >
+                  {isExecuting ? "Stop" : "Execute"}
+                </Button>
+              </Tooltip>
+              
+              <Menu shadow="md" width={200}>
+                <Menu.Target>
+                  <ActionIcon variant="light" size="lg">
+                    <IconDots style={{ width: rem(20), height: rem(20) }} />
+                  </ActionIcon>
+                </Menu.Target>
+                
+                <Menu.Dropdown>
+                  <Menu.Item
+                    leftSection={<IconUpload style={{ width: rem(14), height: rem(14) }} />}
+                    onClick={() => document.getElementById('file-upload')?.click()}
+                  >
+                    Upload Dataset
+                  </Menu.Item>
+                  <Menu.Item
+                    leftSection={<IconDownload style={{ width: rem(14), height: rem(14) }} />}
+                  >
+                    Export Workflow
+                  </Menu.Item>
+                  <Menu.Item
+                    leftSection={<IconShare style={{ width: rem(14), height: rem(14) }} />}
+                  >
+                    Share Workflow
+                  </Menu.Item>
+                  <Menu.Divider />
+                  <Menu.Item
+                    leftSection={<IconRobot style={{ width: rem(14), height: rem(14) }} />}
+                    onClick={() => setShowAgentTopology(true)}
+                  >
+                    Agent Topology
+                  </Menu.Item>
+                  <Menu.Item
+                    color="red"
+                    leftSection={<IconTrash style={{ width: rem(14), height: rem(14) }} />}
+                    onClick={createNewWorkflow}
+                  >
+                    Clear Workflow
+                  </Menu.Item>
+                </Menu.Dropdown>
+              </Menu>
+            </Group>
+          </Group>
+        </AppShell.Header>
+        
+        <AppShell.Navbar p="md">
+          <Stack>
+            <Title order={4}>Node Types</Title>
+            <Tabs defaultValue="data">
+              <Tabs.List>
+                <Tabs.Tab value="data" leftSection={<IconDatabase size={14} />}>
+                  Data
+                </Tabs.Tab>
+                <Tabs.Tab value="transform" leftSection={<IconTools size={14} />}>
+                  Transform
+                </Tabs.Tab>
+                <Tabs.Tab value="analysis" leftSection={<IconChartDots size={14} />}>
+                  Analysis
+                </Tabs.Tab>
+                <Tabs.Tab value="ai" leftSection={<IconBrain size={14} />}>
+                  AI
+                </Tabs.Tab>
+                <Tabs.Tab value="export" leftSection={<IconFileReport size={14} />}>
+                  Export
+                </Tabs.Tab>
+              </Tabs.List>
+              
+              <Tabs.Panel value="data" pt="xs">
+                <Stack>
+                  <Button
+                    variant="light"
+                    leftSection={<IconDatabase size={14} />}
+                    onClick={() => {
+                      const position = { x: 100, y: 100 };
+                      addNode('datasetLoader', position);
+                    }}
+                  >
+                    Dataset Loader
+                  </Button>
+                  <Button
+                    variant="light"
+                    leftSection={<IconApi size={14} />}
+                    onClick={() => {
+                      const position = { x: 100, y: 200 };
+                      addNode('structuralAnalysis', position);
+                    }}
+                  >
+                    Data Source
+                  </Button>
+                </Stack>
+              </Tabs.Panel>
+              
+              <Tabs.Panel value="transform" pt="xs">
+                <Stack>
+                  <Button
+                    variant="light"
+                    leftSection={<IconAdjustments size={14} />}
+                    onClick={() => {
+                      const position = { x: 100, y: 300 };
+                      addNode('dataBinning', position);
+                    }}
+                  >
+                    Data Transform
+                  </Button>
+                </Stack>
+              </Tabs.Panel>
+              
+              <Tabs.Panel value="analysis" pt="xs">
+                <Stack>
+                  <Button
+                    variant="light"
+                    leftSection={<IconChartBar size={14} />}
+                    onClick={() => {
+                      const position = { x: 100, y: 400 };
+                      addNode('edaAnalysis', position);
+                    }}
+                  >
+                    Data Analysis
+                  </Button>
+                </Stack>
+              </Tabs.Panel>
+              
+              <Tabs.Panel value="ai" pt="xs">
+                <Stack>
+                  <Button
+                    variant="light"
+                    leftSection={<IconBrain size={14} />}
+                    onClick={() => {
+                      const position = { x: 100, y: 500 };
+                      addNode('binaryClassifier', position);
+                    }}
+                  >
+                    AI Model
+                  </Button>
+                </Stack>
+              </Tabs.Panel>
+              
+              <Tabs.Panel value="export" pt="xs">
+                <Stack>
+                  <Button
+                    variant="light"
+                    leftSection={<IconFileReport size={14} />}
+                    onClick={() => {
+                      const position = { x: 100, y: 600 };
+                      addNode('reportGenerator', position);
+                    }}
+                  >
+                    Data Export
+                  </Button>
+                </Stack>
+              </Tabs.Panel>
+            </Tabs>
+          </Stack>
+        </AppShell.Navbar>
+        
+        <AppShell.Main>
+          <div style={{ width: '100%', height: 'calc(100vh - 60px)' }}>
+            <ReactFlow
+              nodes={nodes as any}
+              edges={edges as any}
+              nodeTypes={nodeTypes}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              onConnect={onConnect}
+              onNodeClick={(_, node) => selectNode(node.id)}
+              fitView
+            >
+              <Controls />
+              <MiniMap />
+              <Background color="#f8f8f8" gap={12} size={1} />
+            </ReactFlow>
+          </div>
+        </AppShell.Main>
+      </AppShell>
+
+      {/* Hidden file input for dataset uploads */}
+      <input
+        type="file"
+        id="file-upload"
+        style={{ display: 'none' }}
+        accept=".csv,.json,.xlsx,.parquet"
+        onChange={(e) => {
+          const files = e.target.files;
+          if (files && files.length > 0) {
+            handleDataSourceUpload(files[0]);
+            // Reset the input
+            e.target.value = '';
+          }
+        }}
+      />
+
+      {/* Save Workflow Modal */}
+      <Modal
+        opened={saveModalOpen}
+        onClose={closeSaveModal}
+        title={
+          <Group>
+            <ThemeIcon size="lg" radius="md" variant="light" color="blue">
+              <IconDeviceFloppy size={20} />
+            </ThemeIcon>
+            <Text fw={700}>Save Workflow</Text>
+          </Group>
+        }
+        size="md"
+      >
+        <Stack gap="md">
+          <TextInput
+            label="Workflow Name"
+            placeholder="Enter workflow name"
+            value={workflowName}
+            onChange={(e) => setWorkflowName(e.currentTarget.value)}
+            required
+          />
+          
+          <Textarea
+            label="Description"
+            placeholder="Enter workflow description"
+            value={workflowDescription}
+            onChange={(e) => setWorkflowDescription(e.currentTarget.value)}
+            minRows={3}
+          />
+          
+          <Group justify="flex-end" mt="md">
+            <Button variant="light" onClick={closeSaveModal}>Cancel</Button>
+            <Button 
+              onClick={handleSaveWorkflow}
+              loading={isSaving}
+            >
+              Save Workflow
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+
+      {/* Agent Topology Modal */}
+      <Modal
+        opened={showAgentTopology}
+        onClose={() => setShowAgentTopology(false)}
+        title={
+          <Group>
+            <ThemeIcon size="lg" radius="md" variant="light" color="blue">
+              <IconRobot size={20} />
+            </ThemeIcon>
+            <Text fw={700}>Agent Topology Visualization</Text>
+          </Group>
+        }
+        size="90%"
+        styles={{ body: { height: 'calc(90vh - 130px)' } }}
+      >
+        <Box h="100%">
+          <AgentTopology
+            onClose={() => setShowAgentTopology(false)}
+          />
+        </Box>
+      </Modal>
+    </ReactFlowProvider>
+  );
+}
+
+// Also export as default for compatibility
+export default WorkflowPage;

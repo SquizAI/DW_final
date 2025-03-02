@@ -1,139 +1,132 @@
-# Data Whisperer 🌟
+# Data Whisperer
 
-An AI-powered data analysis and visualization platform built with Streamlit and OpenAI.
+Data Whisperer is a comprehensive data analysis and workflow automation platform designed to empower data professionals, analysts, and business users to extract meaningful insights from their data without extensive coding.
 
-## Features 🚀
+## Project Structure
 
-- **Smart Data Import**: Automatic schema detection and quality assessment
-- **AI-Powered Analysis**: Get instant insights and patterns from your data
-- **Interactive Visualizations**: Beautiful, responsive charts and graphs
-- **Data Cleaning**: Automated data cleaning suggestions and operations
-- **Feature Engineering**: AI-assisted feature creation and transformation
-- **Machine Learning**: Binary classification with automated resampling
-- **Kaggle Integration**: Direct dataset search and import from Kaggle
-
-## Installation 🛠️
-
-1. Clone the repository:
-```bash
-git clone https://github.com/yourusername/data-whisperer.git
-cd data-whisperer
+```
+DW_final/
+├── backend/                # Backend code (Python/FastAPI)
+│   ├── app/                # Application code
+│   │   ├── api/            # API endpoints
+│   │   ├── models/         # Database models
+│   │   └── workflow_engine/# Workflow execution engine
+│   ├── data/               # Data storage
+│   └── main.py             # Entry point
+├── frontend/               # Frontend code (React/TypeScript)
+│   ├── public/             # Static assets
+│   └── src/                # Source code
+│       ├── api/            # API client code
+│       ├── components/     # Reusable UI components
+│       ├── features/       # Feature modules
+│       └── pages/          # Page components
+├── docs/                   # Documentation (auto-generated)
+└── scripts/                # Utility scripts
 ```
 
-2. Create and activate a virtual environment:
-```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
+## Features
+
+- **Visual Workflow Editor**: Create data processing pipelines with a drag-and-drop interface
+- **Comprehensive Node Library**: Pre-built nodes for various data operations
+- **Automated Data Quality**: Automatically analyze and improve data quality
+- **Interactive Data Exploration**: Browse, filter, and visualize data in real-time
+- **Intelligent Insights**: Automatically discover insights in your data
+- **Collaborative Environment**: Share workflows and insights with team members
+- **Enterprise Integration**: Seamlessly integrate with existing data infrastructure
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js 16+ and npm
+- Python 3.9+
+- PostgreSQL (optional, SQLite is used by default)
+
+### Backend Setup
+
+1. Navigate to the backend directory:
+   ```bash
+   cd backend
+   ```
+
+2. Create a virtual environment:
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
 
 3. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+4. Run the backend server:
+   ```bash
+   uvicorn main:app --reload
+   ```
+
+The backend will be available at http://localhost:8000.
+
+### Frontend Setup
+
+1. Navigate to the frontend directory:
+   ```bash
+   cd frontend
+   ```
+
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Run the development server:
+   ```bash
+   npm start
+   ```
+
+The frontend will be available at http://localhost:3000.
+
+## Documentation
+
+The project includes auto-generated documentation in the `docs` directory. To update the documentation:
+
 ```bash
-pip install -r requirements.txt
+./scripts/auto_update_docs.sh
 ```
 
-4. Set up environment variables:
+To automatically update documentation when files change:
+
 ```bash
-cp .env.example .env
-```
-Then edit `.env` with your API keys and credentials.
-
-## Configuration 🔧
-
-1. **Kaggle API Setup**:
-   - Go to [Kaggle Account Settings](https://www.kaggle.com/account)
-   - Create a new API token
-   - Add credentials to `.env` file
-
-2. **OpenAI API Setup**:
-   - Get your API key from [OpenAI Platform](https://platform.openai.com/api-keys)
-   - Add it to `.env` file
-
-## Usage 💻
-
-1. Start the application:
-```bash
-streamlit run DW_app/app.py
+./scripts/watch_and_update.sh
 ```
 
-2. Open your browser and navigate to:
-```
-http://localhost:8501
-```
+See [scripts/README.md](scripts/README.md) for more information about the utility scripts.
 
-## Project Structure 📁
+## Development Workflow
 
-```
-DW_app/
-├── app.py                 # Main application entry point
-├── assets/               # Static assets (images, CSS)
-├── components/           # Reusable UI components
-├── modules/             # Feature modules
-│   ├── ai_handler.py    # AI integration
-│   ├── data_upload.py   # Data import
-│   ├── data_analysis.py # Analysis tools
-│   └── ...
-└── utils/              # Helper functions
-```
+1. Start the backend server
+2. Start the frontend development server
+3. Start the documentation watcher (optional)
+4. Make changes to the code
+5. Test your changes
+6. Commit your changes
 
-## Features in Detail 📊
-
-### Data Import
-- CSV, Excel, JSON file support
-- Kaggle dataset integration
-- Database connections
-- URL imports
-
-### AI Analysis
-- Automated data profiling
-- Pattern detection
-- Correlation analysis
-- Outlier detection
-- Feature importance
-
-### Visualization
-- Interactive charts
-- 3D visualizations
-- Correlation heatmaps
-- Time series analysis
-- Custom plot suggestions
-
-### Data Processing
-- Automated cleaning
-- Feature engineering
-- Data transformation
-- Type conversion
-- Missing value handling
-
-## Contributing 🤝
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
+3. Make your changes
+4. Run tests
+5. Submit a pull request
 
-## License 📄
+## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-## Acknowledgments 🙏
+## Acknowledgments
 
-- [Streamlit](https://streamlit.io/) for the amazing web framework
-- [OpenAI](https://openai.com/) for the powerful AI capabilities
-- [Kaggle](https://www.kaggle.com/) for the dataset integration
-- [Plotly](https://plotly.com/) for interactive visualizations
-
-## Support 💬
-
-For support, please open an issue in the GitHub repository or contact the maintainers.
-
-## Roadmap 🗺️
-
-- [ ] Advanced ML model training
-- [ ] Custom visualization templates
-- [ ] Automated report generation
-- [ ] Real-time data processing
-- [ ] Collaborative features
-
----
-Made with ❤️ by [Your Name] 
+- [React](https://reactjs.org/)
+- [TypeScript](https://www.typescriptlang.org/)
+- [FastAPI](https://fastapi.tiangolo.com/)
+- [Material-UI](https://mui.com/)
+- [React Flow](https://reactflow.dev/) 

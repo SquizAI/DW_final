@@ -1,0 +1,93 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5173-5180:5173-5180"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      - VITE_API_URL=http://backend:8000
+    depends_on:
+      - backend
+    healthcheck:
+      test: wget --no-verbose --tries=1 --spider http://localhost:5173 || wget --no-verbose --tries=1 --spider http://localhost:5174 || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        - KAGGLE_USERNAME=${KAGGLE_USERNAME}
+        - KAGGLE_KEY=${KAGGLE_KEY}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - backend_data:/app/data
+      - backend_uploads:/app/uploads
+      - backend_exports:/app/exports
+    environment:
+      - ENVIRONMENT=development
+      - LOG_LEVEL=INFO
+      - KAGGLE_USERNAME=${KAGGLE_USERNAME}
+      - KAGGLE_KEY=${KAGGLE_KEY}
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/datawrangler
+      - DATABASE_ECHO=true
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    command: >
+      sh -c "
+        mkdir -p /app/data/kaggle &&
+        mkdir -p /app/uploads &&
+        mkdir -p /app/exports &&
+        chmod -R 777 /app/data &&
+        chmod -R 777 /app/uploads &&
+        chmod -R 777 /app/exports &&
+        python -m app.run_init &&
+        uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+      "
+
+  db:
+    image: postgres:15-alpine
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_DB=datawrangler
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  backend_data:
+  backend_uploads:
+  backend_exports:
+  postgres_data:
+
+secrets:
+  kaggle_username:
+    file: ./backend/secrets/kaggle_username.txt
+  kaggle_key:
+    file: ./backend/secrets/kaggle_key.txt 

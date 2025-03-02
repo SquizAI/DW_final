@@ -1,0 +1,242 @@
+import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
+import { ProtectedLayout } from './layouts/ProtectedLayout';
+import { PublicLayout } from './layouts/PublicLayout';
+import LandingPage from './pages/LandingPage';
+import { LoginPage } from './pages/LoginPage';
+import { RegisterPage } from './pages/RegisterPage';
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
+import { ResetPasswordPage } from './pages/ResetPasswordPage';
+import { useAuth } from './contexts/AuthContext';
+import { WelcomePage } from './components/Onboarding/WelcomePage';
+import { ProfilePage } from './pages/ProfilePage';
+import { SettingsPage } from './pages/SettingsPage';
+
+// Import all the page components
+import { Dashboard } from './pages/Dashboard';
+import { DataManagementPage } from './pages/DataManagementPage';
+import { DataIntegrationPage } from './pages/DataIntegrationPage';
+import { DataWranglingPage } from './pages/DataWranglingPage';
+import { DataBinningPage } from './pages/DataBinningPage';
+import { FeatureEngineeringPage } from './pages/FeatureEngineeringPage';
+import { FeatureImportancePage } from './pages/FeatureImportancePage';
+import { DataAnalysisPage } from './pages/DataAnalysisPage';
+import { VisualizationsPage } from './pages/VisualizationsPage';
+import { AIInsightsPage } from './pages/AIInsightsPage';
+import WorkflowPage from './features/workflow/old/WorkflowPage';
+import { ClassificationPage } from './pages/ClassificationPage';
+import { DataExportPage } from './pages/DataExportPage';
+import { FinalReportPage } from './pages/FinalReportPage';
+import TempKaggleManagerPage from './pages/TempKaggleManagerPage';
+import { CodeNotebook } from './pages/CodeNotebook';
+import { ProjectCreationPage } from './pages/ProjectCreationPage';
+import { DatasetOrganizationPage } from './pages/DatasetOrganizationPage';
+import { HelpCenterPage } from './pages/HelpCenterPage';
+import { AgenticTopologyDemo } from './components/Demo/AgenticTopologyDemo';
+import WorkflowPageNew from './features/workflow/WorkflowPageNew';
+import { WorkflowProvider } from './features/workflow/WorkflowContext';
+
+// Auth guard component
+const AuthGuard = ({ children }: { children: React.ReactNode }) => {
+  const { isAuthenticated, isLoading } = useAuth();
+  
+  if (isLoading) {
+    return <div>Loading...</div>;
+  }
+  
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  return <>{children}</>;
+};
+
+// Guest guard component (prevents authenticated users from accessing login/register)
+const GuestGuard = ({ children }: { children: React.ReactNode }) => {
+  const { isAuthenticated, isLoading } = useAuth();
+  
+  if (isLoading) {
+    return <div>Loading...</div>;
+  }
+  
+  if (isAuthenticated) {
+    return <Navigate to="/dashboard" replace />;
+  }
+  
+  return <>{children}</>;
+};
+
+export const router = createBrowserRouter([
+  {
+    element: <PublicLayout />,
+    children: [
+      {
+        path: '/',
+        element: <LandingPage />,
+      },
+      {
+        path: '/login',
+        element: (
+          <GuestGuard>
+            <LoginPage />
+          </GuestGuard>
+        ),
+      },
+      {
+        path: '/register',
+        element: (
+          <GuestGuard>
+            <RegisterPage />
+          </GuestGuard>
+        ),
+      },
+      {
+        path: '/forgot-password',
+        element: (
+          <GuestGuard>
+            <ForgotPasswordPage />
+          </GuestGuard>
+        ),
+      },
+      {
+        path: '/reset-password',
+        element: (
+          <GuestGuard>
+            <ResetPasswordPage />
+          </GuestGuard>
+        ),
+      },
+      {
+        path: '/help',
+        element: <HelpCenterPage />,
+      },
+    ],
+  },
+  {
+    element: (
+      <AuthGuard>
+        <ProtectedLayout />
+      </AuthGuard>
+    ),
+    children: [
+      {
+        path: '/dashboard',
+        element: <Dashboard />,
+      },
+      {
+        path: '/welcome',
+        element: <WelcomePage />,
+      },
+      {
+        path: '/profile',
+        element: <ProfilePage />,
+      },
+      {
+        path: '/settings',
+        element: <SettingsPage />,
+      },
+      {
+        path: '/data/management',
+        element: <DataManagementPage />,
+      },
+      {
+        path: '/data/organization',
+        element: <DatasetOrganizationPage />,
+      },
+      // Data Preparation Routes
+      {
+        path: '/data/integration',
+        element: <DataIntegrationPage />,
+      },
+      {
+        path: '/data/wrangling',
+        element: <DataWranglingPage />,
+      },
+      {
+        path: '/data/binning',
+        element: <DataBinningPage />,
+      },
+      // Feature Engineering Routes
+      {
+        path: '/features/engineering',
+        element: <FeatureEngineeringPage />,
+      },
+      {
+        path: '/features/importance',
+        element: <FeatureImportancePage />,
+      },
+      // Analysis Routes
+      {
+        path: '/analysis/explore',
+        element: <DataAnalysisPage />,
+      },
+      {
+        path: '/analysis/visualize',
+        element: <VisualizationsPage />,
+      },
+      {
+        path: '/analysis/ai',
+        element: <AIInsightsPage />,
+      },
+      // Automation Routes
+      {
+        path: '/automation/workflows',
+        element: <Navigate to="/workflow" replace />,
+      },
+      {
+        path: '/workflow',
+        element: <WorkflowProvider><WorkflowPageNew /></WorkflowProvider>,
+      },
+      {
+        path: '/workflow-new',
+        element: <WorkflowProvider><WorkflowPageNew /></WorkflowProvider>,
+      },
+      {
+        path: '/workflow-old',
+        element: <WorkflowPage />,
+      },
+      {
+        path: '/automation/classify',
+        element: <ClassificationPage />,
+      },
+      // Export Routes
+      {
+        path: '/export/data',
+        element: <DataExportPage />,
+      },
+      {
+        path: '/export/report',
+        element: <FinalReportPage />,
+      },
+      // Kaggle
+      {
+        path: '/kaggle/manager',
+        element: <TempKaggleManagerPage />,
+      },
+      // Notebook
+      {
+        path: '/notebook',
+        element: <CodeNotebook />,
+      },
+      // Project Creation
+      {
+        path: '/project/create',
+        element: <ProjectCreationPage />,
+      },
+      // Demo Routes
+      {
+        path: '/demo/agentic-topology',
+        element: <AgenticTopologyDemo />,
+      },
+      // Catch-all redirect
+      {
+        path: '*',
+        element: <Navigate to="/dashboard" replace />,
+      },
+    ],
+  },
+], {
+  // Add future flags to address warnings
+  future: {
+    v7_relativeSplatPath: true
+  }
+}); 
