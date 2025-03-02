@@ -129,4 +129,20 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - [TypeScript](https://www.typescriptlang.org/)
 - [FastAPI](https://fastapi.tiangolo.com/)
 - [Material-UI](https://mui.com/)
-- [React Flow](https://reactflow.dev/) 
+- [React Flow](https://reactflow.dev/)
+- [Streamlit](https://streamlit.io/) for the amazing web framework
+- [OpenAI](https://openai.com/) for the powerful AI capabilities
+- [Kaggle](https://www.kaggle.com/) for the dataset integration
+- [Plotly](https://plotly.com/) for interactive visualizations
+
+## Support 💬
+
+For support, please open an issue in the GitHub repository or contact the maintainers.
+
+## Roadmap 🗺️
+
+- [ ] Advanced ML model training
+- [ ] Custom visualization templates
+- [ ] Automated report generation
+- [ ] Real-time data processing
+- [ ] Collaborative features
