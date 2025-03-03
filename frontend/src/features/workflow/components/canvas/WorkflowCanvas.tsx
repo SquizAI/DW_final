@@ -137,28 +137,64 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
   const [zoom, setZoom] = useState(1);
   const reactFlowInstance = useReactFlow();
   
+  // Create a style object that includes the provided dimensions
+  const containerStyle = {
+    width: canvasWidth ? `${canvasWidth}px` : '100%',
+    height: canvasHeight ? `${canvasHeight}px` : '100%', // Changed from fixed 600px to 100%
+    background: '#f8f9fa',
+    display: 'flex',
+    flexDirection: 'column' as const,
+    position: 'relative' as const,
+    flex: 1,
+    overflow: 'hidden'
+  };
+  
   // Handle node changes
   const onNodesChange = useCallback(
     (changes: NodeChange[]) => {
-      setNodes(applyNodeChanges(changes, nodes as any) as any);
+      setNodes((nodes) => {
+        try {
+          const updatedNodes = applyNodeChanges(changes, nodes as any);
+          return updatedNodes as any;
+        } catch (error) {
+          console.error('Error applying node changes:', error);
+          return nodes; // Return original nodes if there's an error
+        }
+      });
     },
-    [nodes, setNodes]
+    [setNodes]
   );
 
   // Handle edge changes
   const onEdgesChange = useCallback(
     (changes: EdgeChange[]) => {
-      setEdges(applyEdgeChanges(changes, edges as any) as any);
+      setEdges((edges) => {
+        try {
+          const updatedEdges = applyEdgeChanges(changes, edges as any);
+          return updatedEdges as any;
+        } catch (error) {
+          console.error('Error applying edge changes:', error);
+          return edges; // Return original edges if there's an error
+        }
+      });
     },
-    [edges, setEdges]
+    [setEdges]
   );
 
   // Handle connection changes
   const onConnect = useCallback(
     (connection: Connection) => {
-      setEdges(addEdge(connection, edges as any) as any);
+      setEdges((edges) => {
+        try {
+          const updatedEdges = addEdge(connection, edges as any);
+          return updatedEdges as any;
+        } catch (error) {
+          console.error('Error connecting edges:', error);
+          return edges; // Return original edges if there's an error
+        }
+      });
     },
-    [edges, setEdges]
+    [setEdges]
   );
   
   // Handle node hover
@@ -202,88 +238,80 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
   }, []);
   
   return (
-    <div style={reactFlowContainerStyle}>
+    <div style={containerStyle}>
       <ReactFlow
         nodes={nodes as any}
         edges={edges as any}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
-        onNodeClick={handleNodeClick as any}
+        nodeTypes={nodeTypes}
+        onNodeClick={(_, node) => selectNode(node.id)}
         onNodeMouseEnter={handleNodeMouseEnter as any}
         onNodeMouseLeave={handleNodeMouseLeave}
-        nodeTypes={nodeTypes}
+        onPaneClick={() => selectNode(null)}
         fitView
-        style={reactFlowStyle}
+        snapToGrid
+        snapGrid={[15, 15]}
+        defaultViewport={{ x: 0, y: 0, zoom: 1 }}
         minZoom={0.1}
         maxZoom={2}
-        defaultViewport={{ x: 0, y: 0, zoom: 1 }}
-        attributionPosition="bottom-right"
-        nodesDraggable={true}
-        nodesConnectable={true}
-        elementsSelectable={true}
-        selectNodesOnDrag={false}
-        panOnDrag={true}
-        panOnScroll={true}
-        zoomOnScroll={true}
-        zoomOnPinch={true}
-        zoomOnDoubleClick={true}
+        style={{
+          width: '100%',
+          height: '100%',
+          background: 'var(--mantine-color-gray-0)',
+          borderRadius: '4px'
+        }}
       >
         {showControls && (
-          <Panel position="top-right">
-            <Group gap={8}>
-              <Tooltip label="Zoom In">
-                <ActionIcon variant="light" onClick={handleZoomIn}>
-                  <IconZoomIn size={16} />
-                </ActionIcon>
-              </Tooltip>
-              <Tooltip label="Zoom Out">
-                <ActionIcon variant="light" onClick={handleZoomOut}>
-                  <IconZoomOut size={16} />
-                </ActionIcon>
-              </Tooltip>
-              <Tooltip label="Fit View">
-                <ActionIcon variant="light" onClick={handleZoomToFit}>
-                  <IconMaximize size={16} />
-                </ActionIcon>
-              </Tooltip>
-              <Tooltip label="Reset View">
-                <ActionIcon variant="light" onClick={handleZoomReset}>
-                  <IconArrowsMinimize size={16} />
-                </ActionIcon>
-              </Tooltip>
-            </Group>
-          </Panel>
-        )}
-        
-        {showMinimap && (
-          <MiniMap 
-            nodeStrokeWidth={3}
-            zoomable
-            pannable
+          <Controls 
+            position="bottom-right"
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              padding: '8px',
+              background: 'white',
+              borderRadius: '8px',
+              boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+              margin: '16px'
+            }}
           />
         )}
         
-        <Background 
-          variant={BackgroundVariant.Dots}
-          gap={12}
-          size={1}
-          color="#f0f0f0"
-        />
+        {showMinimap && (
+          <MiniMap
+            nodeStrokeWidth={3}
+            nodeColor={(node) => {
+              switch (node.type) {
+                case 'datasetLoader':
+                  return '#1890ff';
+                case 'structuralAnalysis':
+                  return '#52c41a';
+                case 'qualityChecker':
+                  return '#fa8c16';
+                default:
+                  return '#d9d9d9';
+              }
+            }}
+            style={{
+              background: 'white',
+              borderRadius: '8px',
+              boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+              margin: '16px'
+            }}
+          />
+        )}
         
-        <Controls showInteractive={false} />
+        <Background
+          variant={BackgroundVariant.Dots}
+          gap={16}
+          size={1}
+          color="rgba(0,0,0,0.05)"
+        />
       </ReactFlow>
       
       {showTooltips && hoveredNode && (
-        <div 
-          style={{
-            ...nodeTooltipStyle,
-            left: tooltipPosition.x + 10,
-            top: tooltipPosition.y - 10
-          }}
-        >
-          <NodeTooltip node={hoveredNode} />
-        </div>
+        <NodeTooltip node={hoveredNode} />
       )}
     </div>
   );

@@ -1,3 +1,22 @@
+/**
+ * WorkflowPageNew.tsx
+ * 
+ * This component serves as the main workflow builder interface for the Data Whisperer application.
+ * It provides a comprehensive environment for users to create, edit, and execute data processing workflows.
+ * 
+ * Features:
+ * - Drag-and-drop workflow canvas for node placement and connection
+ * - Sidebar with categorized nodes for workflow construction
+ * - Configuration panel for editing node properties
+ * - Execution controls for running workflows
+ * - Preview functionality for examining node outputs
+ * - Data lineage visualization
+ * - AI assistance for workflow optimization
+ * 
+ * Note: This is the primary implementation of the workflow interface.
+ * A simplified version exists in /old/pages/WorkflowPageNew.tsx for reference.
+ */
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Box, Group, Tabs, useMantineTheme, Button, ActionIcon, Tooltip, Text, Modal, Paper } from '@mantine/core';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -19,6 +38,7 @@ import DataPreview from './components/data/DataPreview';
 import DataLineageGraph from './components/lineage/DataLineageGraph';
 import WorkflowAIChat from './components/ai/WorkflowAIChat';
 import { DataSourceManager } from './DataSourceManager';
+import { NodePreview } from './components/execution/NodePreview';
 
 // Import icons
 import { 
@@ -38,7 +58,8 @@ import {
   IconPlayerStop,
   IconShare,
   IconDownload,
-  IconUpload
+  IconUpload,
+  IconEye
 } from '@tabler/icons-react';
 
 export const WorkflowPageNew: React.FC = () => {
@@ -59,6 +80,9 @@ export const WorkflowPageNew: React.FC = () => {
   const [showExecutionPanel, setShowExecutionPanel] = useState(false);
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
   const [dataSourceModalOpen, setDataSourceModalOpen] = useState(false);
+  
+  // State for NodePreview modal
+  const [nodePreviewOpen, setNodePreviewOpen] = useState(false);
   
   // Load workflow data if ID is provided
   useEffect(() => {
@@ -110,6 +134,13 @@ export const WorkflowPageNew: React.FC = () => {
   // Toggle sidebar collapse
   const handleToggleSidebar = () => {
     setSidebarCollapsed(!sidebarCollapsed);
+  };
+
+  // Open node preview
+  const openNodePreview = () => {
+    if (selectedNode) {
+      setNodePreviewOpen(true);
+    }
   };
 
   // Handle execute workflow
@@ -238,7 +269,8 @@ export const WorkflowPageNew: React.FC = () => {
         display: 'flex',
         flex: 1,
         overflow: 'hidden',
-        position: 'relative'
+        position: 'relative',
+        height: 'calc(100vh - 60px)'
       }}>
         {/* Workflow Sidebar */}
         <div style={{
@@ -247,7 +279,7 @@ export const WorkflowPageNew: React.FC = () => {
           transition: 'width 0.3s ease',
           borderRight: `1px solid ${theme.colors.gray[3]}`,
           zIndex: 90,
-          background: theme.colors.gray[0]
+          background: 'white'
         }}>
           <WorkflowSidebar
             collapsed={sidebarCollapsed}
@@ -260,64 +292,62 @@ export const WorkflowPageNew: React.FC = () => {
           flex: 1,
           height: '100%',
           position: 'relative',
-          overflow: 'hidden'
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
+          background: theme.colors.gray[0]
         }}>
           <div 
             ref={canvasContainerRef}
             style={{ 
               position: 'relative', 
-              height: '100%',
+              height: showExecutionPanel ? 'calc(100% - 200px)' : '100%',
               width: '100%',
-              overflow: 'hidden'
+              overflow: 'hidden',
+              transition: 'height 0.3s ease'
             }}
           >
             {/* Main Canvas */}
+            <WorkflowCanvas
+              showMinimap={true}
+              showControls={true}
+              showTooltips={true}
+              canvasWidth={canvasSize.width}
+              canvasHeight={canvasSize.height}
+            />
+          </div>
+          
+          {/* Execution Panel */}
+          {showExecutionPanel && (
             <div style={{ 
-              height: showExecutionPanel ? 'calc(100% - 200px)' : '100%',
-              width: '100%',
-              transition: 'height 0.3s ease'
+              position: 'absolute', 
+              bottom: 0, 
+              left: 0, 
+              right: 0, 
+              height: 200,
+              zIndex: 10
             }}>
-              <WorkflowCanvas
-                showMinimap={true}
-                showControls={true}
-                showTooltips={true}
-                canvasWidth={canvasSize.width}
-                canvasHeight={canvasSize.height}
+              <WorkflowExecutionPanel 
+                expanded={true}
+                onToggleExpand={() => setShowExecutionPanel(!showExecutionPanel)}
               />
             </div>
-            
-            {/* Execution Panel */}
-            {showExecutionPanel && (
-              <div style={{ 
-                position: 'absolute', 
-                bottom: 0, 
-                left: 0, 
-                right: 0, 
-                height: 200,
-                zIndex: 10
-              }}>
-                <WorkflowExecutionPanel 
-                  expanded={true}
-                  onToggleExpand={() => setShowExecutionPanel(!showExecutionPanel)}
-                />
-              </div>
-            )}
-            
-            {/* Floating button to show execution panel */}
-            {!showExecutionPanel && (
-              <div style={{ 
-                position: 'absolute', 
-                bottom: 20, 
-                right: 20, 
-                zIndex: 10 
-              }}>
-                <WorkflowExecutionPanel 
-                  expanded={false}
-                  onToggleExpand={() => setShowExecutionPanel(true)}
-                />
-              </div>
-            )}
-          </div>
+          )}
+          
+          {/* Floating button to show execution panel */}
+          {!showExecutionPanel && (
+            <div style={{ 
+              position: 'absolute', 
+              bottom: 20, 
+              right: 20, 
+              zIndex: 10 
+            }}>
+              <WorkflowExecutionPanel 
+                expanded={false}
+                onToggleExpand={() => setShowExecutionPanel(true)}
+              />
+            </div>
+          )}
         </div>
         
         {/* Right Panel */}
@@ -357,8 +387,16 @@ export const WorkflowPageNew: React.FC = () => {
                 </Tabs.Tab>
               </Tabs.List>
               
-              <Tabs.Panel value="config" style={{ height: 'calc(100vh - 120px)' }}>
-                <NodeConfigPanel />
+              <Tabs.Panel value="config" p="md">
+                {selectedNode ? (
+                  <>
+                    <NodeConfigPanel onPreviewNode={openNodePreview} />
+                  </>
+                ) : (
+                  <Text color="dimmed" ta="center" py="xl">
+                    Select a node to configure
+                  </Text>
+                )}
               </Tabs.Panel>
               
               <Tabs.Panel value="analytics" style={{ height: 'calc(100vh - 120px)' }}>
@@ -421,6 +459,18 @@ export const WorkflowPageNew: React.FC = () => {
           initialTab="browse"
         />
       </Modal>
+      
+      {/* Node Preview Modal */}
+      {selectedNode && (
+        <NodePreview
+          nodeId={selectedNode.id}
+          nodeType={selectedNode.type}
+          nodeLabel={selectedNode.data.label}
+          isOpen={nodePreviewOpen}
+          onClose={() => setNodePreviewOpen(false)}
+          onExecute={() => console.log(`Executed preview for node: ${selectedNode.id}`)}
+        />
+      )}
       
       {/* Hidden file input for dataset uploads */}
       <input

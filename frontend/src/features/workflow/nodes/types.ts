@@ -42,11 +42,49 @@ export interface DatasetLoaderValidation {
 
 export interface DatasetLoaderNodeData extends Omit<NodeData, 'type' | 'validation'> {
   type: 'datasetLoader';
+  sourceType?: 'file' | 'database' | 'api' | 'kaggle' | 'url';
   source?: {
-    type: 'file' | 'database' | 'api';
+    type: 'file' | 'database' | 'api' | 'kaggle' | 'url';
     location: string;
     format?: string;
     credentials?: Record<string, string>;
+  };
+  config?: {
+    filePath?: string;
+    databaseConfig?: {
+      connectionString?: string;
+      query?: string;
+      type?: string;
+    };
+    apiConfig?: {
+      url?: string;
+      method?: string;
+      headers?: Record<string, string>;
+      body?: string;
+    };
+    kaggleConfig?: {
+      datasetRef?: string;
+    };
+    urlConfig?: {
+      url?: string;
+      format?: string;
+    };
+  };
+  preview?: {
+    columns: string[];
+    rows: any[];
+    stats: {
+      rows: number;
+      columns: number;
+      memory: string;
+    };
+    schema?: {
+      fields: {
+        name: string;
+        type: string;
+        nullable: boolean;
+      }[];
+    };
   };
   validation?: DatasetLoaderValidation;
 }

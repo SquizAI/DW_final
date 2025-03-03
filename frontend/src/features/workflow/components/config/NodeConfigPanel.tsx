@@ -27,7 +27,8 @@ import {
   IconChartBar, 
   IconHistory,
   IconX,
-  IconDeviceFloppy
+  IconDeviceFloppy,
+  IconEye
 } from '@tabler/icons-react';
 import { useWorkflow } from '../../WorkflowContext';
 import { WorkflowNode } from '../../nodes/reactflow';
@@ -35,9 +36,10 @@ import { WorkflowNodeData } from '../../nodes/types';
 
 interface NodeConfigPanelProps {
   onClose?: () => void;
+  onPreviewNode?: (nodeId: string, nodeType: string, nodeLabel: string) => void;
 }
 
-export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({ onClose }) => {
+export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({ onClose, onPreviewNode }) => {
   const { selectedNode, updateNodeData } = useWorkflow();
   const [activeTab, setActiveTab] = useState<string | null>('settings');
   
@@ -46,8 +48,8 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({ onClose }) => 
       <Paper p="md" withBorder h="100%">
         <Stack align="center" justify="center" h="100%" gap="md">
           <IconInfoCircle size={48} opacity={0.3} />
-          <Text c="dimmed" ta="center">
-            Select a node to configure its properties
+          <Text ta="center" c="dimmed">
+            Select a node to configure its settings
           </Text>
         </Stack>
       </Paper>
@@ -56,6 +58,17 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({ onClose }) => 
   
   const handleUpdateNodeData = (data: Partial<WorkflowNodeData>) => {
     updateNodeData(selectedNode.id, data);
+  };
+  
+  const handlePreviewClick = () => {
+    if (onPreviewNode && selectedNode) {
+      const nodeData = selectedNode.data as WorkflowNodeData;
+      onPreviewNode(
+        selectedNode.id,
+        nodeData.type,
+        nodeData.label || 'Unnamed Node'
+      );
+    }
   };
   
   const renderConfigFields = () => {
@@ -353,6 +366,22 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({ onClose }) => 
     }
   };
   
+  const renderPreviewButton = () => {
+    return (
+      <>
+        <Divider my="md" />
+        <Button 
+          fullWidth 
+          leftSection={<IconEye size={16} />}
+          onClick={handlePreviewClick}
+          color="blue"
+        >
+          Preview Node Output
+        </Button>
+      </>
+    );
+  };
+  
   return (
     <Paper p="md" withBorder h="100%">
       <Group position="apart" mb="md">
@@ -389,6 +418,7 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({ onClose }) => 
         
         <Tabs.Panel value="settings">
           {renderConfigFields()}
+          {onPreviewNode && renderPreviewButton()}
         </Tabs.Panel>
         
         <Tabs.Panel value="code">

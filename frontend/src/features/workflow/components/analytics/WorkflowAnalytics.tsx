@@ -198,9 +198,7 @@ interface WorkflowAnalyticsProps {
   workflowId?: string;
 }
 
-export const WorkflowAnalytics: React.FC<WorkflowAnalyticsProps> = ({
-  workflowId
-}) => {
+export default function WorkflowAnalytics({ workflowId }: WorkflowAnalyticsProps) {
   const { nodes } = useWorkflow();
   const [timeRange, setTimeRange] = useState('7d');
   const [selectedExecution, setSelectedExecution] = useState<string | null>(EXECUTIONS[0].id);
@@ -259,7 +257,7 @@ export const WorkflowAnalytics: React.FC<WorkflowAnalyticsProps> = ({
   
   return (
     <Paper p="md" withBorder>
-      <Group mb="md" position="apart">
+      <Group mb="md" justify="space-between">
         <Title order={4}>Workflow Analytics</Title>
         <Group>
           <Select
@@ -290,12 +288,12 @@ export const WorkflowAnalytics: React.FC<WorkflowAnalyticsProps> = ({
         </Group>
       </Group>
       
-      <SimpleGrid cols={4} mb="md" breakpoints={[
-        { maxWidth: 'md', cols: 2 },
-        { maxWidth: 'sm', cols: 1 }
-      ]}>
+      <SimpleGrid 
+        cols={{ base: 4, md: 2, sm: 1 }}
+        mb="md"
+      >
         <Card p="md" radius="md" withBorder>
-          <Group position="apart" mb="xs">
+          <Group justify="space-between" mb="xs">
             <Text size="xs" c="dimmed">Success Rate</Text>
             <Badge color={calculateSuccessRate() >= 90 ? 'green' : 'yellow'}>
               {Math.round(calculateSuccessRate())}%
@@ -314,15 +312,15 @@ export const WorkflowAnalytics: React.FC<WorkflowAnalyticsProps> = ({
         </Card>
         
         <Card p="md" radius="md" withBorder>
-          <Group position="apart" mb="xs">
+          <Group justify="space-between" mb="xs">
             <Text size="xs" c="dimmed">Avg. Duration</Text>
             <Text size="sm" fw={500}>{formatDuration(calculateAverageDuration())}</Text>
           </Group>
-          <Group position="apart" align="flex-end">
+          <Group justify="space-between" align="flex-end">
             <ThemeIcon size="xl" radius="xl" variant="light">
               <IconClock size={20} />
             </ThemeIcon>
-            <Stack spacing={0} align="flex-end">
+            <Stack gap={0} align="flex-end">
               <Text size="xs" c="dimmed">Fastest: {formatDuration(Math.min(...EXECUTIONS.map(e => e.duration)))}</Text>
               <Text size="xs" c="dimmed">Slowest: {formatDuration(Math.max(...EXECUTIONS.map(e => e.duration)))}</Text>
             </Stack>
@@ -330,15 +328,15 @@ export const WorkflowAnalytics: React.FC<WorkflowAnalyticsProps> = ({
         </Card>
         
         <Card p="md" radius="md" withBorder>
-          <Group position="apart" mb="xs">
+          <Group justify="space-between" mb="xs">
             <Text size="xs" c="dimmed">Total Executions</Text>
             <Text size="sm" fw={500}>{EXECUTIONS.length}</Text>
           </Group>
-          <Group position="apart" align="flex-end">
+          <Group justify="space-between" align="flex-end">
             <ThemeIcon size="xl" radius="xl" variant="light">
               <IconChartBar size={20} />
             </ThemeIcon>
-            <Stack spacing={0} align="flex-end">
+            <Stack gap={0} align="flex-end">
               <Text size="xs" c="dimmed">Completed: {EXECUTIONS.filter(e => e.status === 'completed').length}</Text>
               <Text size="xs" c="dimmed">Failed: {EXECUTIONS.filter(e => e.status === 'failed').length}</Text>
             </Stack>
@@ -346,12 +344,12 @@ export const WorkflowAnalytics: React.FC<WorkflowAnalyticsProps> = ({
         </Card>
         
         <Card p="md" radius="md" withBorder>
-          <Group position="apart" mb="xs">
+          <Group justify="space-between" mb="xs">
             <Text size="xs" c="dimmed">Resource Usage</Text>
             <Text size="sm" fw={500}>Moderate</Text>
           </Group>
-          <Stack spacing="xs">
-            <Group position="apart">
+          <Stack gap="xs">
+            <Group justify="space-between">
               <Text size="xs">CPU</Text>
               <Text size="xs">{Math.round(EXECUTIONS.reduce((sum, e) => sum + e.performance.cpu, 0) / EXECUTIONS.length)}%</Text>
             </Group>
@@ -360,7 +358,7 @@ export const WorkflowAnalytics: React.FC<WorkflowAnalyticsProps> = ({
               size="sm" 
               color="blue"
             />
-            <Group position="apart">
+            <Group justify="space-between">
               <Text size="xs">Memory</Text>
               <Text size="xs">{Math.round(EXECUTIONS.reduce((sum, e) => sum + e.performance.memory, 0) / EXECUTIONS.length)}%</Text>
             </Group>
@@ -426,7 +424,7 @@ export const WorkflowAnalytics: React.FC<WorkflowAnalyticsProps> = ({
                     </Badge>
                   </Table.Td>
                   <Table.Td>
-                    <Group spacing="xs">
+                    <Group gap="xs">
                       <Badge size="sm" color="green">{execution.nodeStats.completed}</Badge>
                       <Badge size="sm" color="red">{execution.nodeStats.failed}</Badge>
                       <Badge size="sm" color="gray">{execution.nodeStats.skipped}</Badge>
@@ -450,11 +448,13 @@ export const WorkflowAnalytics: React.FC<WorkflowAnalyticsProps> = ({
               
               <Title order={5} mb="sm">Execution Details: {selectedExecution}</Title>
               
-              <SimpleGrid cols={2} breakpoints={[{ maxWidth: 'sm', cols: 1 }]}>
+              <SimpleGrid 
+                cols={{ base: 2, sm: 1 }}
+              >
                 <Card p="md" radius="md" withBorder>
                   <Title order={6}>Performance Metrics</Title>
-                  <Stack mt="md">
-                    <Group position="apart">
+                  <Stack gap={5}>
+                    <Group justify="space-between">
                       <Text size="sm">CPU Usage</Text>
                       <Text size="sm">{getSelectedExecution().performance.cpu}%</Text>
                     </Group>
@@ -464,7 +464,7 @@ export const WorkflowAnalytics: React.FC<WorkflowAnalyticsProps> = ({
                       color="blue"
                     />
                     
-                    <Group position="apart">
+                    <Group justify="space-between">
                       <Text size="sm">Memory Usage</Text>
                       <Text size="sm">{getSelectedExecution().performance.memory}%</Text>
                     </Group>
@@ -474,7 +474,7 @@ export const WorkflowAnalytics: React.FC<WorkflowAnalyticsProps> = ({
                       color="violet"
                     />
                     
-                    <Group position="apart">
+                    <Group justify="space-between">
                       <Text size="sm">I/O Operations</Text>
                       <Text size="sm">{getSelectedExecution().performance.io}%</Text>
                     </Group>
@@ -488,38 +488,38 @@ export const WorkflowAnalytics: React.FC<WorkflowAnalyticsProps> = ({
                 
                 <Card p="md" radius="md" withBorder>
                   <Title order={6}>Execution Summary</Title>
-                  <Stack mt="md" spacing="xs">
-                    <Group position="apart">
+                  <Stack gap={5}>
+                    <Group justify="space-between">
                       <Text size="sm">Start Time:</Text>
                       <Text size="sm">{formatDate(getSelectedExecution().startTime)}</Text>
                     </Group>
-                    <Group position="apart">
+                    <Group justify="space-between">
                       <Text size="sm">End Time:</Text>
                       <Text size="sm">{formatDate(getSelectedExecution().endTime)}</Text>
                     </Group>
-                    <Group position="apart">
+                    <Group justify="space-between">
                       <Text size="sm">Duration:</Text>
                       <Text size="sm">{formatDuration(getSelectedExecution().duration)}</Text>
                     </Group>
-                    <Group position="apart">
+                    <Group justify="space-between">
                       <Text size="sm">Status:</Text>
                       <Badge color={getStatusColor(getSelectedExecution().status)}>
                         {getSelectedExecution().status}
                       </Badge>
                     </Group>
-                    <Group position="apart">
+                    <Group justify="space-between">
                       <Text size="sm">Total Nodes:</Text>
                       <Text size="sm">{getSelectedExecution().nodeStats.total}</Text>
                     </Group>
-                    <Group position="apart">
+                    <Group justify="space-between">
                       <Text size="sm">Completed Nodes:</Text>
                       <Badge color="green">{getSelectedExecution().nodeStats.completed}</Badge>
                     </Group>
-                    <Group position="apart">
+                    <Group justify="space-between">
                       <Text size="sm">Failed Nodes:</Text>
                       <Badge color="red">{getSelectedExecution().nodeStats.failed}</Badge>
                     </Group>
-                    <Group position="apart">
+                    <Group justify="space-between">
                       <Text size="sm">Skipped Nodes:</Text>
                       <Badge color="gray">{getSelectedExecution().nodeStats.skipped}</Badge>
                     </Group>
@@ -581,7 +581,7 @@ export const WorkflowAnalytics: React.FC<WorkflowAnalyticsProps> = ({
                     </Badge>
                   </Table.Td>
                   <Table.Td>
-                    <Group spacing="xs" noWrap>
+                    <Group gap="xs" wrap="nowrap">
                       <Progress 
                         value={node.avgCpu} 
                         size="sm" 
@@ -592,7 +592,7 @@ export const WorkflowAnalytics: React.FC<WorkflowAnalyticsProps> = ({
                     </Group>
                   </Table.Td>
                   <Table.Td>
-                    <Group spacing="xs" noWrap>
+                    <Group gap="xs" wrap="nowrap">
                       <Progress 
                         value={node.avgMemory} 
                         size="sm" 
@@ -603,7 +603,7 @@ export const WorkflowAnalytics: React.FC<WorkflowAnalyticsProps> = ({
                     </Group>
                   </Table.Td>
                   <Table.Td>
-                    <Group spacing="xs">
+                    <Group gap="xs" wrap="nowrap">
                       {getTrendIcon(node.trend)}
                       <Text size="xs">{node.trend}</Text>
                     </Group>
@@ -617,18 +617,20 @@ export const WorkflowAnalytics: React.FC<WorkflowAnalyticsProps> = ({
           
           <Title order={5} mb="sm">Node Performance Insights</Title>
           
-          <SimpleGrid cols={2} breakpoints={[{ maxWidth: 'sm', cols: 1 }]}>
+          <SimpleGrid 
+            cols={{ base: 2, sm: 1 }}
+          >
             <Card p="md" radius="md" withBorder>
               <Title order={6}>Bottlenecks</Title>
               <Text size="sm" mt="xs">
                 The following nodes are taking the most time in your workflow:
               </Text>
-              <Stack mt="md">
+              <Stack gap={5}>
                 {NODE_PERFORMANCE
                   .sort((a, b) => b.avgDuration - a.avgDuration)
                   .slice(0, 3)
                   .map((node, index) => (
-                    <Group key={index} position="apart">
+                    <Group key={index} justify="space-between">
                       <Text size="sm">{node.name}</Text>
                       <Text size="sm">{formatDuration(node.avgDuration)}</Text>
                     </Group>
@@ -642,12 +644,12 @@ export const WorkflowAnalytics: React.FC<WorkflowAnalyticsProps> = ({
               <Text size="sm" mt="xs">
                 Consider optimizing these nodes to improve overall performance:
               </Text>
-              <Stack mt="md">
+              <Stack gap={5}>
                 {NODE_PERFORMANCE
                   .filter(node => node.trend === 'degrading' || node.failures > 0)
                   .map((node, index) => (
-                    <Group key={index} position="apart">
-                      <Group spacing="xs">
+                    <Group key={index} justify="space-between">
+                      <Group gap="xs" wrap="nowrap">
                         <Text size="sm">{node.name}</Text>
                         {node.failures > 0 && (
                           <Badge size="xs" color="red">{node.failures} failures</Badge>
@@ -668,27 +670,29 @@ export const WorkflowAnalytics: React.FC<WorkflowAnalyticsProps> = ({
         <Tabs.Panel value="errors">
           <Title order={5} mb="sm">Error Distribution</Title>
           
-          <SimpleGrid cols={2} breakpoints={[{ maxWidth: 'sm', cols: 1 }]}>
+          <SimpleGrid 
+            cols={{ base: 2, sm: 1 }}
+          >
             <Card p="md" radius="md" withBorder>
               <Title order={6}>Error Types</Title>
-              <Stack mt="md">
-                <Group position="apart">
+              <Stack gap={5}>
+                <Group justify="space-between">
                   <Text size="sm">API Connection Errors</Text>
                   <Badge color="red">1</Badge>
                 </Group>
-                <Group position="apart">
+                <Group justify="space-between">
                   <Text size="sm">Data Validation Errors</Text>
                   <Badge color="red">0</Badge>
                 </Group>
-                <Group position="apart">
+                <Group justify="space-between">
                   <Text size="sm">Timeout Errors</Text>
                   <Badge color="red">0</Badge>
                 </Group>
-                <Group position="apart">
+                <Group justify="space-between">
                   <Text size="sm">Resource Exhaustion</Text>
                   <Badge color="red">0</Badge>
                 </Group>
-                <Group position="apart">
+                <Group justify="space-between">
                   <Text size="sm">Other Errors</Text>
                   <Badge color="red">0</Badge>
                 </Group>
@@ -697,8 +701,8 @@ export const WorkflowAnalytics: React.FC<WorkflowAnalyticsProps> = ({
             
             <Card p="md" radius="md" withBorder>
               <Title order={6}>Most Common Errors</Title>
-              <Stack mt="md">
-                <Group position="apart">
+              <Stack gap={5}>
+                <Group justify="space-between">
                   <Text size="sm">Failed to connect to external API: Timeout</Text>
                   <Badge color="red">1</Badge>
                 </Group>
@@ -744,6 +748,4 @@ export const WorkflowAnalytics: React.FC<WorkflowAnalyticsProps> = ({
       </Tabs>
     </Paper>
   );
-};
-
-export default WorkflowAnalytics; 
+} 

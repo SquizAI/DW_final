@@ -17,7 +17,7 @@ export default defineConfig({
     strictPort: false, // Allow Vite to use another port if 5173 is in use
     proxy: {
       '/api': {
-        target: 'http://localhost:8000',
+        target: 'http://localhost:8001',
         changeOrigin: true,
         secure: false
       }

@@ -130,7 +130,6 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - [FastAPI](https://fastapi.tiangolo.com/)
 - [Material-UI](https://mui.com/)
 - [React Flow](https://reactflow.dev/)
-- [Streamlit](https://streamlit.io/) for the amazing web framework
 - [OpenAI](https://openai.com/) for the powerful AI capabilities
 - [Kaggle](https://www.kaggle.com/) for the dataset integration
 - [Plotly](https://plotly.com/) for interactive visualizations

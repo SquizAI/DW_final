@@ -52,32 +52,33 @@ import { useWorkflow } from '../../WorkflowContext';
 
 // Custom node types
 const nodeTypes: NodeTypes = {
-  dataset: ({ data, xPos, yPos, isConnectable, sourcePosition, targetPosition, dragHandle, zIndex, dragging, ...rest }: any) => {
-    // Create a separate props object that won't be passed to the DOM
-    const flowProps = { xPos, yPos, isConnectable, sourcePosition, targetPosition, dragHandle, zIndex, dragging };
+  dataset: ({ data, xPos, yPos, isConnectable, sourcePosition, targetPosition, dragHandle, zIndex, dragging, selected, id, ...rest }: any) => {
+    // Filter out React Flow specific props that shouldn't be passed to DOM
+    const { style, ...domProps } = rest;
+    
+    // Convert any camelCase props to lowercase for DOM elements
+    const sanitizedProps = Object.keys(domProps).reduce((acc, key) => {
+      const newKey = key.replace(/([A-Z])/g, (match) => `-${match.toLowerCase()}`);
+      return { ...acc, [newKey]: domProps[key] };
+    }, {});
     
     return (
       <div 
         className="dataset-node"
         style={{
-          background: data.format === 'csv' ? '#e6f7ff' : 
-                     data.format === 'json' ? '#fff7e6' : 
-                     data.format === 'parquet' ? '#f6ffed' : '#f9f0ff',
-          border: '1px solid #d9d9d9',
+          background: '#e6f7ff',
+          border: `1px solid ${selected ? '#1890ff' : '#d9d9d9'}`,
           borderRadius: '4px',
           padding: '10px',
           width: '180px',
-          boxShadow: '0 2px 5px rgba(0,0,0,0.1)'
+          boxShadow: selected ? '0 0 0 2px #1890ff' : '0 2px 5px rgba(0,0,0,0.1)',
+          ...style
         }}
-        {...rest}
+        {...sanitizedProps}
       >
-        <div style={{ fontWeight: 'bold', marginBottom: '5px' }}>{data.label}</div>
+        <div style={{ fontWeight: 'bold', marginBottom: '5px' }}>{data.label || 'Dataset'}</div>
         {data.format && (
-          <Badge size="sm" color={
-            data.format === 'csv' ? 'blue' : 
-            data.format === 'json' ? 'orange' : 
-            data.format === 'parquet' ? 'green' : 'violet'
-          }>
+          <Badge size="sm" color="blue">
             {data.format.toUpperCase()}
           </Badge>
         )}
@@ -99,8 +100,19 @@ const nodeTypes: NodeTypes = {
             </div>
           </div>
         )}
-        <Handle type="target" position={Position.Top} style={{ background: '#555' }} />
-        <Handle type="source" position={Position.Bottom} style={{ background: '#555' }} />
+        
+        <Handle
+          type="target"
+          position={Position.Top}
+          style={{ background: '#1890ff' }}
+          isConnectable={isConnectable}
+        />
+        <Handle
+          type="source"
+          position={Position.Bottom}
+          style={{ background: '#1890ff' }}
+          isConnectable={isConnectable}
+        />
       </div>
     );
   },
@@ -109,84 +121,174 @@ const nodeTypes: NodeTypes = {
       style={{
         padding: '10px',
         borderRadius: '5px',
-        background: 'var(--mantine-color-violet-1)',
-        border: '1px solid var(--mantine-color-violet-5)',
+        background: 'var(--mantine-color-blue-1)',
+        border: '1px solid var(--mantine-color-blue-5)',
         width: 180
       }}
-      {...props}
+      {...Object.entries(props).reduce((acc, [key, value]) => {
+        if (['sourcePosition', 'targetPosition', 'isConnectable', 'dragging', 'dragHandle', 'zIndex', 'xPos', 'yPos'].includes(key)) {
+          return acc;
+        }
+        const domKey = key.toLowerCase();
+        return { ...acc, [domKey]: value };
+      }, {})}
     >
       <Group mb={5}>
-        <ThemeIcon size="md" variant="light" color="violet" radius="md">
+        <ThemeIcon size="md" variant="light" color="blue" radius="md">
           <IconArrowsExchange size={14} />
         </ThemeIcon>
         <Text size="sm" fw={500}>{data.label}</Text>
       </Group>
       {data.operation && (
-        <Badge size="sm" color="violet" variant="light">
+        <Badge size="xs" color="blue" variant="light" mb={5}>
           {data.operation}
         </Badge>
       )}
     </div>
   ),
-  analysis: ({ data, ...props }: any) => (
-    <div
-      style={{
-        padding: '10px',
-        borderRadius: '5px',
-        background: 'var(--mantine-color-green-1)',
-        border: '1px solid var(--mantine-color-green-5)',
-        width: 180
-      }}
-      {...props}
-    >
-      <Group mb={5}>
-        <ThemeIcon size="md" variant="light" color="green" radius="md">
-          <IconChartBar size={14} />
-        </ThemeIcon>
-        <Text size="sm" fw={500}>{data.label}</Text>
-      </Group>
-      {data.metrics && (
-        <Box 
-          style={{ 
-            fontSize: '12px', 
-            background: 'var(--mantine-color-green-0)',
-            padding: '5px',
-            borderRadius: '3px'
-          }}
-        >
-          {Object.entries(data.metrics).map(([key, value]: [string, any], i: number) => (
-            <div key={i} style={{ marginBottom: '2px' }}>
-              <Text size="xs">{key}: <b>{value}</b></Text>
-            </div>
-          ))}
-        </Box>
-      )}
-    </div>
-  ),
-  export: ({ data, ...props }: any) => (
-    <div
-      style={{
-        padding: '10px',
-        borderRadius: '5px',
-        background: 'var(--mantine-color-orange-1)',
-        border: '1px solid var(--mantine-color-orange-5)',
-        width: 180
-      }}
-      {...props}
-    >
-      <Group mb={5}>
-        <ThemeIcon size="md" variant="light" color="orange" radius="md">
-          <IconFileExport size={14} />
-        </ThemeIcon>
-        <Text size="sm" fw={500}>{data.label}</Text>
-      </Group>
-      {data.format && (
-        <Badge size="sm" color="orange" variant="light">
-          {data.format}
-        </Badge>
-      )}
-    </div>
-  )
+  source: ({ data, xPos, yPos, isConnectable, sourcePosition, targetPosition, dragHandle, zIndex, dragging, selected, id, ...rest }: any) => {
+    // Filter out React Flow specific props
+    const { style, ...domProps } = rest;
+    
+    // Convert any camelCase props to lowercase for DOM elements
+    const sanitizedProps = Object.keys(domProps).reduce((acc, key) => {
+      const newKey = key.replace(/([A-Z])/g, (match) => `-${match.toLowerCase()}`);
+      return { ...acc, [newKey]: domProps[key] };
+    }, {});
+    
+    return (
+      <div 
+        className="source-node"
+        style={{
+          background: '#e6fcf5',
+          border: `1px solid ${selected ? '#13c2c2' : '#d9d9d9'}`,
+          borderRadius: '4px',
+          padding: '10px',
+          width: '180px',
+          boxShadow: selected ? '0 0 0 2px #13c2c2' : '0 2px 5px rgba(0,0,0,0.1)',
+          ...style
+        }}
+        {...sanitizedProps}
+      >
+        <div style={{ fontWeight: 'bold', marginBottom: '5px' }}>{data.label || 'Data Source'}</div>
+        {data.source && (
+          <Badge size="sm" color="teal">
+            {data.source.toUpperCase()}
+          </Badge>
+        )}
+        {data.metrics && (
+          <div style={{ marginTop: '8px', fontSize: '12px' }}>
+            <Text size="xs" fw={500}>Records: {data.metrics.records || 0}</Text>
+            <Text size="xs">Size: {data.metrics.size || '0 KB'}</Text>
+          </div>
+        )}
+        
+        <Handle
+          type="source"
+          position={Position.Bottom}
+          style={{ background: '#13c2c2' }}
+          isConnectable={isConnectable}
+        />
+      </div>
+    );
+  },
+  analysis: ({ data, xPos, yPos, isConnectable, sourcePosition, targetPosition, dragHandle, zIndex, dragging, selected, id, ...rest }: any) => {
+    // Filter out React Flow specific props
+    const { style, ...domProps } = rest;
+    
+    // Convert any camelCase props to lowercase for DOM elements
+    const sanitizedProps = Object.keys(domProps).reduce((acc, key) => {
+      const newKey = key.replace(/([A-Z])/g, (match) => `-${match.toLowerCase()}`);
+      return { ...acc, [newKey]: domProps[key] };
+    }, {});
+    
+    return (
+      <div 
+        className="analysis-node"
+        style={{
+          background: '#f6ffed',
+          border: `1px solid ${selected ? '#52c41a' : '#d9d9d9'}`,
+          borderRadius: '4px',
+          padding: '10px',
+          width: '180px',
+          boxShadow: selected ? '0 0 0 2px #52c41a' : '0 2px 5px rgba(0,0,0,0.1)',
+          ...style
+        }}
+        {...sanitizedProps}
+      >
+        <div style={{ fontWeight: 'bold', marginBottom: '5px' }}>{data.label || 'Analysis'}</div>
+        {data.type && (
+          <Badge size="sm" color="green">
+            {data.type.toUpperCase()}
+          </Badge>
+        )}
+        {data.metrics && (
+          <div style={{ marginTop: '8px', fontSize: '12px' }}>
+            <Text size="xs">Features: {data.metrics.features || 0}</Text>
+            <Text size="xs">Score: {data.metrics.score || 'N/A'}</Text>
+          </div>
+        )}
+        
+        <Handle
+          type="target"
+          position={Position.Top}
+          style={{ background: '#52c41a' }}
+          isConnectable={isConnectable}
+        />
+        <Handle
+          type="source"
+          position={Position.Bottom}
+          style={{ background: '#52c41a' }}
+          isConnectable={isConnectable}
+        />
+      </div>
+    );
+  },
+  export: ({ data, xPos, yPos, isConnectable, sourcePosition, targetPosition, dragHandle, zIndex, dragging, selected, id, ...rest }: any) => {
+    // Filter out React Flow specific props
+    const { style, ...domProps } = rest;
+    
+    // Convert any camelCase props to lowercase for DOM elements
+    const sanitizedProps = Object.keys(domProps).reduce((acc, key) => {
+      const newKey = key.replace(/([A-Z])/g, (match) => `-${match.toLowerCase()}`);
+      return { ...acc, [newKey]: domProps[key] };
+    }, {});
+    
+    return (
+      <div 
+        className="export-node"
+        style={{
+          background: '#fff7e6',
+          border: `1px solid ${selected ? '#fa8c16' : '#d9d9d9'}`,
+          borderRadius: '4px',
+          padding: '10px',
+          width: '180px',
+          boxShadow: selected ? '0 0 0 2px #fa8c16' : '0 2px 5px rgba(0,0,0,0.1)',
+          ...style
+        }}
+        {...sanitizedProps}
+      >
+        <div style={{ fontWeight: 'bold', marginBottom: '5px' }}>{data.label || 'Export'}</div>
+        {data.format && (
+          <Badge size="sm" color="orange">
+            {data.format.toUpperCase()}
+          </Badge>
+        )}
+        {data.destination && (
+          <div style={{ marginTop: '8px', fontSize: '12px' }}>
+            <Text size="xs" fw={500}>Destination: {data.destination}</Text>
+          </div>
+        )}
+        
+        <Handle
+          type="target"
+          position={Position.Top}
+          style={{ background: '#fa8c16' }}
+          isConnectable={isConnectable}
+        />
+      </div>
+    );
+  }
 };
 
 // Define edgeTypes or remove it from ReactFlow
@@ -410,18 +512,13 @@ export const DataLineageGraphInner: React.FC<DataLineageGraphProps> = ({
   return (
     <div style={{ 
       width: '100%', 
-      height: `${height}px`,
-      border: '1px solid #e0e0e0',
-      borderRadius: '4px',
-      position: 'relative'
+      height: `${height}px`, 
+      border: '1px solid var(--mantine-color-gray-3)',
+      borderRadius: 'var(--mantine-radius-md)',
+      overflow: 'hidden'
     }}>
       {isLoading ? (
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'center', 
-          alignItems: 'center',
-          height: '100%' 
-        }}>
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
           <Loader size="lg" />
         </div>
       ) : (

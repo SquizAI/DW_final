@@ -45,7 +45,8 @@ import {
   IconPinned,
   IconArrowLeft,
   IconExternalLink,
-  IconPlus
+  IconPlus,
+  IconHistory
 } from '@tabler/icons-react';
 import { DragDropContext, DropResult } from 'react-beautiful-dnd';
 import { NodeCategoryComponent } from './components/NodeCategoryComponent';
@@ -462,479 +463,187 @@ export const WorkflowSidebar = ({ collapsed = false, onToggleCollapse }: Workflo
     });
   };
   
-  // If node details panel is open, show it
-  if (showNodeDetails && selectedNodeDetails && !collapsed) {
+  // If sidebar is collapsed, show only icons
+  if (collapsed) {
     return (
       <Stack 
         style={{ 
-          width: 320,
+          width: 60,
           height: '100%',
           borderRight: `1px solid ${theme.colors.gray[3]}`,
           overflow: 'hidden',
-          position: 'relative',
-          background: 'white',
+          background: 'white'
         }}
         gap={0}
       >
-        <Box p="xs" style={{ borderBottom: `1px solid ${theme.colors.gray[3]}`, background: 'white' }}>
-          <Group justify="space-between" wrap="nowrap">
-            <Group gap="xs">
-              <ActionIcon onClick={handleCloseNodeDetails} size="sm" variant="subtle">
-                <IconArrowLeft size={16} />
-              </ActionIcon>
-              <Text fw={600} size="sm">{selectedNodeDetails.label}</Text>
-            </Group>
-            <ActionIcon onClick={onToggleCollapse} size="sm" variant="subtle">
-              <IconLayoutSidebarRight size={16} />
-            </ActionIcon>
-          </Group>
+        <Box p="xs" style={{ borderBottom: `1px solid ${theme.colors.gray[3]}` }}>
+          <ActionIcon onClick={onToggleCollapse} size="md" variant="subtle">
+            <IconLayoutSidebar size={20} />
+          </ActionIcon>
         </Box>
         
-        <ScrollArea style={{ flex: 1, width: '100%' }} offsetScrollbars scrollbarSize={6} type="auto" scrollHideDelay={500}>
-          <Box p="md">
-            <Group mb="md" align="flex-start">
-              <ThemeIcon size="xl" radius="md" color={selectedNodeDetails.color}>
-                {selectedNodeDetails.icon}
-              </ThemeIcon>
-              <Box>
-                <Text fw={700} size="lg">{selectedNodeDetails.label}</Text>
-                <Text size="sm" c="dimmed">{selectedNodeDetails.description}</Text>
-                <Group mt="xs" gap="xs">
-                  {selectedNodeDetails.tags.map((tag: string) => (
-                    <Badge key={tag} size="sm" variant="light" color={selectedNodeDetails.color}>
-                      {tag}
-                    </Badge>
-                  ))}
-                </Group>
-              </Box>
-            </Group>
-            
-            <Divider my="md" />
-            
-            <Text fw={600} size="sm" mb="xs">Configuration Options</Text>
-            {selectedNodeDetails.configOptions.map((option: any, index: number) => (
-              <Box key={index} mb="md">
-                <Text fw={500} size="sm">{option.label}</Text>
-                {option.type === 'select' && (
-                  <Box mt="xs">
-                    <Text size="xs" c="dimmed" mb="xs">Options:</Text>
-                    <Group gap="xs">
-                      {option.options.map((opt: string) => (
-                        <Badge key={opt} size="sm">{opt}</Badge>
-                      ))}
-                    </Group>
-                  </Box>
-                )}
-                {option.type === 'boolean' && (
-                  <Text size="xs" c="dimmed" mt="xs">Type: Boolean</Text>
-                )}
-                {option.type === 'string' && (
-                  <Text size="xs" c="dimmed" mt="xs">Type: Text</Text>
-                )}
-                {option.type === 'number' && (
-                  <Text size="xs" c="dimmed" mt="xs">Type: Number</Text>
-                )}
-                {option.type === 'code' && (
-                  <Text size="xs" c="dimmed" mt="xs">Type: Code Editor</Text>
-                )}
-                {option.type === 'array' && (
-                  <Text size="xs" c="dimmed" mt="xs">Type: Array</Text>
-                )}
-              </Box>
-            ))}
-            
-            <Divider my="md" />
-            
-            <Text fw={600} size="sm" mb="xs">Input/Output</Text>
-            <Group mb="md">
-              <Box>
-                <Text size="sm">Inputs:</Text>
-                <Text size="lg" fw={700}>{selectedNodeDetails.inputs}</Text>
-              </Box>
-              <Box>
-                <Text size="sm">Outputs:</Text>
-                <Text size="lg" fw={700}>{selectedNodeDetails.outputs}</Text>
-              </Box>
-            </Group>
-            
-            <Divider my="md" />
-            
-            <Text fw={600} size="sm" mb="xs">Examples</Text>
-            {selectedNodeDetails.examples.map((example: any, index: number) => (
-              <Paper key={index} p="sm" withBorder mb="sm">
-                <Text fw={500} size="sm">{example.title}</Text>
-                <Text size="xs" c="dimmed" mt="xs">Configuration:</Text>
-                <Box 
-                  mt="xs" 
-                  p="xs" 
-                  style={{ 
-                    background: theme.colors.gray[0], 
-                    borderRadius: theme.radius.sm,
-                    fontFamily: 'monospace',
-                    fontSize: '12px'
-                  }}
-                >
-                  {JSON.stringify(example.config, null, 2)}
-                </Box>
-              </Paper>
-            ))}
-            
-            <Divider my="md" />
-            
-            <Group justify="space-between" mb="md">
-              <Text fw={600} size="sm">Documentation</Text>
-              <ActionIcon component="a" href={selectedNodeDetails.documentation} target="_blank" size="sm" variant="subtle">
-                <IconExternalLink size={16} />
+        <Stack align="center" py="md" gap="md">
+          {NODE_CATEGORIES.map(category => (
+            <Tooltip 
+              key={category.id} 
+              label={category.label} 
+              position="right"
+              withArrow
+            >
+              <ActionIcon 
+                size="lg" 
+                variant={activeCategory === category.id ? "light" : "subtle"}
+                color={activeCategory === category.id ? category.color : "gray"}
+              >
+                {category.icon}
               </ActionIcon>
-            </Group>
-          </Box>
-        </ScrollArea>
-        
-        <Box p="md" style={{ borderTop: `1px solid ${theme.colors.gray[3]}` }}>
-          <Button 
-            fullWidth 
-            leftSection={<IconPlus size={16} />}
-            color={selectedNodeDetails.color}
-            onClick={() => handleAddNodeToWorkflow(selectedNodeDetails.id)}
-          >
-            Add to Workflow
-          </Button>
-        </Box>
+            </Tooltip>
+          ))}
+        </Stack>
       </Stack>
     );
   }
   
+  // Render the full sidebar
   return (
-    <DragDropContext onDragEnd={handleDragEnd}>
-      <Stack 
-        style={{ 
-          width: collapsed ? 60 : 320,
-          transition: 'width 0.3s ease',
-          height: '100%',
-          borderRight: `1px solid ${theme.colors.gray[3]}`,
-          overflow: 'hidden',
-          position: 'relative',
-          background: '#f8f9fa',
-        }}
-        gap={0}
-      >
-        {/* Header */}
-        <Box p="xs" style={{ borderBottom: `1px solid ${theme.colors.gray[3]}`, background: 'white' }}>
-          {!collapsed ? (
-            <Group justify="space-between" wrap="nowrap">
-              <Text fw={600} size="sm">Nodes</Text>
-              <ActionIcon onClick={onToggleCollapse} size="sm" variant="subtle">
-                <IconLayoutSidebarRight size={16} />
+    <Stack 
+      style={{ 
+        width: 320,
+        height: '100%',
+        borderRight: `1px solid ${theme.colors.gray[3]}`,
+        overflow: 'hidden',
+        background: 'white'
+      }}
+      gap={0}
+    >
+      <Box p="xs" style={{ borderBottom: `1px solid ${theme.colors.gray[3]}` }}>
+        <Group justify="space-between" wrap="nowrap">
+          <Text fw={600} size="sm">Nodes</Text>
+          <ActionIcon onClick={onToggleCollapse} size="sm" variant="subtle">
+            <IconLayoutSidebarRight size={16} />
+          </ActionIcon>
+        </Group>
+      </Box>
+      
+      <Box p="xs" style={{ borderBottom: `1px solid ${theme.colors.gray[3]}` }}>
+        <TextInput
+          placeholder="Search nodes..."
+          size="sm"
+          leftSection={<IconSearch size={14} />}
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.currentTarget.value)}
+          rightSection={
+            searchQuery ? (
+              <ActionIcon size="xs" variant="subtle" onClick={() => setSearchQuery('')}>
+                <IconX size={14} />
               </ActionIcon>
-            </Group>
-          ) : (
-            <ActionIcon onClick={onToggleCollapse} mx="auto">
-              <IconLayoutSidebar size={16} />
-            </ActionIcon>
-          )}
-        </Box>
+            ) : null
+          }
+        />
+      </Box>
+      
+      <Tabs defaultValue="all">
+        <Tabs.List style={{ borderBottom: `1px solid ${theme.colors.gray[3]}` }}>
+          <Tabs.Tab value="all" leftSection={<IconTable size={14} />}>All</Tabs.Tab>
+          <Tabs.Tab value="favorites" leftSection={<IconStar size={14} />}>Favorites</Tabs.Tab>
+          <Tabs.Tab value="recent" leftSection={<IconHistory size={14} />}>Recent</Tabs.Tab>
+        </Tabs.List>
         
-        {/* Search and filters (only when expanded) */}
-        {!collapsed && (
-          <Box p="xs" style={{ background: 'white' }}>
-            <Input
-              placeholder="Search nodes..."
-              leftSection={<IconSearch size={14} color={theme.colors.gray[6]} />}
-              rightSection={
-                searchQuery ? (
-                  <ActionIcon size="xs" onClick={() => setSearchQuery('')} variant="subtle">
-                    <IconX size={12} />
-                  </ActionIcon>
-                ) : null
-              }
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.currentTarget.value)}
-              size="sm"
-              mb="xs"
-              styles={{
-                input: {
-                  border: `1px solid ${theme.colors.gray[3]}`,
-                  boxShadow: 'none',
-                  '&:focus': {
-                    borderColor: theme.colors.blue[5]
-                  }
-                }
-              }}
-            />
-            
-            <Group justify="space-between" wrap="nowrap">
-              <Group gap="xs">
-                <UnstyledButton 
-                  onClick={() => setFavoritesOnly(!favoritesOnly)}
-                  style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '4px',
-                    padding: '4px 8px',
-                    borderRadius: '4px',
-                    background: favoritesOnly ? 'rgba(255, 198, 0, 0.1)' : 'transparent',
-                    border: favoritesOnly ? '1px solid rgba(255, 198, 0, 0.3)' : '1px solid transparent',
-                  }}
+        <Tabs.Panel value="all">
+          <ScrollArea style={{ height: 'calc(100vh - 170px)' }} offsetScrollbars scrollbarSize={6} type="auto">
+            <Box p="xs">
+              {filteredCategories.length > 0 ? (
+                <Accordion 
+                  multiple 
+                  defaultValue={expandedCategories}
+                  onChange={setExpandedCategories as any}
                 >
-                  <IconStar size={14} color={favoritesOnly ? '#ffc600' : theme.colors.gray[6]} />
-                  <Text size="xs" c={favoritesOnly ? 'dark' : 'dimmed'}>Favorites</Text>
-                </UnstyledButton>
-                
-                <Tooltip label="Configure view">
-                  <ActionIcon variant="subtle" size="sm">
-                    <IconAdjustmentsHorizontal size={14} />
-                  </ActionIcon>
-                </Tooltip>
-              </Group>
-            </Group>
-          </Box>
-        )}
-        
-        {/* Component categories */}
-        <ScrollArea style={{ flex: 1, width: '100%' }} offsetScrollbars scrollbarSize={6} type="auto" scrollHideDelay={500}>
-          {collapsed ? (
-            // Collapsed view - just icons
-            <Stack gap={0} align="center" py="xs">
-              {NODE_CATEGORIES.map(category => (
-                <Tooltip 
-                  key={category.id} 
-                  label={category.label} 
-                  position="right"
-                  withArrow
-                >
-                  <ActionIcon 
-                    my={4}
-                    color={category.color}
-                    variant={activeCategory === category.id ? 'filled' : 'subtle'}
-                    onClick={() => setActiveCategory(category.id)}
-                  >
-                    {category.icon}
-                  </ActionIcon>
-                </Tooltip>
-              ))}
-            </Stack>
-          ) : (
-            // Expanded view - n8n style node display
-            <Box>
-              {/* Category tabs */}
-              <Tabs 
-                value={activeCategory} 
-                onChange={(value: string | null) => setActiveCategory(value || 'all')}
-                styles={{
-                  root: {
-                    backgroundColor: 'white',
-                  },
-                  list: {
-                    borderBottom: 'none',
-                    gap: 4,
-                    padding: '8px 8px 0',
-                    flexWrap: 'nowrap',
-                    overflowX: 'auto',
-                    '&::-webkit-scrollbar': {
-                      height: 0,
-                      width: 0,
-                      display: 'none'
-                    },
-                    scrollbarWidth: 'none',
-                    msOverflowStyle: 'none'
-                  },
-                  tab: {
-                    borderBottom: 'none',
-                    borderRadius: '4px',
-                    padding: '6px 10px',
-                    fontWeight: 500,
-                    fontSize: '12px',
-                    backgroundColor: '#f1f3f5',
-                    color: theme.colors.gray[7],
-                    '&[data-active]': {
-                      borderBottom: 'none',
-                      backgroundColor: theme.colors.blue[6],
-                      color: 'white'
-                    }
-                  }
-                }}
-              >
-                <Tabs.List>
-                  <Tabs.Tab value="all">All</Tabs.Tab>
-                  {NODE_CATEGORIES.map(category => (
-                    <Tabs.Tab 
-                      key={category.id} 
-                      value={category.id}
-                      leftSection={category.icon}
-                    >
-                      {category.label}
-                    </Tabs.Tab>
-                  ))}
-                </Tabs.List>
-              </Tabs>
-
-              {/* Favorites section */}
-              {favoritesOnly && favoriteNodes.length > 0 && (
-                <Box py="xs" px="xs" style={{ backgroundColor: 'rgba(255, 198, 0, 0.05)' }}>
-                  <Text size="xs" fw={600} mb="xs" c="dimmed">FAVORITES</Text>
-                  <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
-                    gap: '8px',
-                    width: '100%',
-                    maxWidth: '100%',
-                    overflowX: 'hidden'
-                  }}>
-                    {favoriteNodes.map((node, idx) => (
-                      <Paper
-                        key={node.id}
-                        p="xs"
-                        radius="md"
-                        withBorder
-                        shadow="xs"
-                        style={{
-                          cursor: 'pointer',
-                          borderColor: selectedNodes.includes(node.id) ? theme.colors[node.color][5] : theme.colors.gray[3],
-                          borderLeft: `3px solid ${theme.colors[node.color][5]}`,
-                          position: 'relative'
+                  {filteredCategories.map(category => (
+                    <Accordion.Item key={category.id} value={category.id}>
+                      <Accordion.Control 
+                        icon={category.icon} 
+                        style={{ 
+                          color: theme.colors[category.color][6],
+                          fontWeight: 600
                         }}
-                        onClick={() => handleNodeSelect(node)}
                       >
-                        <ActionIcon 
-                          size="xs" 
-                          style={{ position: 'absolute', top: '5px', right: '5px' }}
-                          color="yellow"
-                          variant="transparent"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleFavorite(node.id);
-                          }}
-                        >
-                          <IconStar size={14} fill={theme.colors.yellow[4]} />
-                        </ActionIcon>
-                        
-                        <Group gap="xs" mb={4} wrap="nowrap">
-                          <ThemeIcon color={node.color} size="md" radius="sm">
-                            {node.icon}
-                          </ThemeIcon>
-                        </Group>
-                        
-                        <Text size="xs" fw={500} lineClamp={1}>
-                          {node.label}
-                        </Text>
-                        
-                        <Text size="xs" c="dimmed" lineClamp={2} mt={2}>
-                          {node.description}
-                        </Text>
-                      </Paper>
-                    ))}
-                  </div>
-                </Box>
-              )}
-
-              {/* Categories and nodes */}
-              <Box pb="md" style={{ maxWidth: '100%', overflowX: 'hidden' }}>
-                {filteredCategories.map(category => (
-                  <Accordion
-                    key={category.id} 
-                    defaultValue={expandedCategories.includes(category.id) ? category.id : null}
-                    styles={{
-                      item: {
-                        borderBottom: 'none',
-                        backgroundColor: 'transparent',
-                      },
-                      control: {
-                        padding: '8px 12px',
-                        '&:hover': {
-                          backgroundColor: theme.colors.gray[0]
-                        }
-                      },
-                      panel: {
-                        padding: '4px 12px 12px'
-                      }
-                    }}
-                  >
-                    <Accordion.Item value={category.id}>
-                      <Accordion.Control
-                        icon={
-                          <ThemeIcon color={category.color} size="sm" radius="xl">
-                            {category.icon}
-                          </ThemeIcon>
-                        }
-                      >
-                        <Group justify="space-between" wrap="nowrap">
-                          <Text size="sm" fw={500}>{category.label}</Text>
-                          <Badge size="xs" variant="light" color={category.color}>
-                            {category.nodes.length}
-                          </Badge>
-                        </Group>
+                        {category.label}
                       </Accordion.Control>
-                      
                       <Accordion.Panel>
-                        <div style={{
-                          display: 'grid',
-                          gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
-                          gap: '8px',
-                          width: '100%',
-                          maxWidth: '100%',
-                          overflowX: 'hidden'
+                        <div style={{ 
+                          display: 'grid', 
+                          gridTemplateColumns: viewMode === 'grid' ? '1fr 1fr' : '1fr',
+                          gap: '8px'
                         }}>
-                          {category.nodes.map((node, idx) => (
+                          {category.nodes.map(node => (
                             <Paper
                               key={node.id}
-                              p="xs"
-                              radius="md"
-                              withBorder
                               shadow="xs"
-                              style={{
+                              p="xs"
+                              withBorder
+                              style={{ 
                                 cursor: 'pointer',
-                                borderColor: selectedNodes.includes(node.id) ? theme.colors[node.color][5] : theme.colors.gray[3],
-                                borderLeft: `3px solid ${theme.colors[node.color][5]}`,
-                                position: 'relative'
+                                position: 'relative',
+                                overflow: 'hidden',
+                                transition: 'all 0.2s ease',
+                                '&:hover': {
+                                  transform: 'translateY(-2px)',
+                                  boxShadow: theme.shadows.sm
+                                }
                               }}
                               onClick={() => handleNodeSelect(node)}
                             >
-                              <ActionIcon 
-                                size="xs" 
-                                style={{ position: 'absolute', top: '5px', right: '5px' }}
-                                color="gray"
-                                variant="transparent"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  toggleFavorite(node.id);
-                                }}
-                              >
-                                <IconStar size={14} fill={favorites.includes(node.id) ? theme.colors.yellow[4] : 'transparent'} />
-                              </ActionIcon>
-                              
-                              <Group gap="xs" mb={4} wrap="nowrap">
-                                <ThemeIcon color={node.color} size="md" radius="sm">
-                                  {node.icon}
-                                </ThemeIcon>
+                              <Group justify="apart" mb={4} wrap="nowrap">
+                                <Group wrap="nowrap" gap={8}>
+                                  <ThemeIcon size="md" radius="md" color={node.color}>
+                                    {node.icon}
+                                  </ThemeIcon>
+                                  <Text size="sm" fw={500} lineClamp={1}>
+                                    {node.label}
+                                  </Text>
+                                </Group>
+                                <ActionIcon 
+                                  size="xs" 
+                                  variant="subtle"
+                                  color={favorites.includes(node.id) ? "yellow" : "gray"}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleFavorite(node.id);
+                                  }}
+                                >
+                                  <IconStar size={14} />
+                                </ActionIcon>
                               </Group>
                               
-                              <Text size="xs" fw={500} lineClamp={1}>
-                                {node.label}
-                              </Text>
-                              
-                              <Text size="xs" c="dimmed" lineClamp={2} mt={2}>
+                              <Text size="xs" color="dimmed" lineClamp={2} mb={4}>
                                 {node.description}
                               </Text>
                               
-                              <Group justify="space-between" mt={8}>
-                                <Badge size="xs" variant="dot" color={node.color}>
+                              <Group justify="apart" mt={8} wrap="nowrap">
+                                <Badge size="xs" color={node.color} variant="light">
                                   {node.complexity}
                                 </Badge>
-                                <Text size="xs" c="dimmed">{node.inputs}{'->'}{node.outputs}</Text>
+                                <Text size="xs" color="dimmed">
+                                  {node.inputs}-{node.outputs}
+                                </Text>
                               </Group>
                             </Paper>
                           ))}
                         </div>
                       </Accordion.Panel>
                     </Accordion.Item>
-                  </Accordion>
-                ))}
-              </Box>
+                  ))}
+                </Accordion>
+              ) : (
+                <Text ta="center" color="dimmed" py="xl">
+                  No nodes match your search
+                </Text>
+              )}
             </Box>
-          )}
-        </ScrollArea>
-      </Stack>
-    </DragDropContext>
+          </ScrollArea>
+        </Tabs.Panel>
+      </Tabs>
+    </Stack>
   );
 };
 

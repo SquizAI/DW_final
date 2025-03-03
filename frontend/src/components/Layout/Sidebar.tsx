@@ -40,7 +40,7 @@ const NAVIGATION = [
         label: 'Workflow Builder',
         description: 'Create and manage workflows',
         icon: IconArrowsTransferUp,
-        path: '/automation/workflows',
+        path: '/workflow',
         badge: 'Beta',
         color: 'grape'
       },
@@ -171,6 +171,15 @@ const NAVIGATION = [
         path: '/automation/classify',
         color: 'grape'
       },
+      { 
+        id: 'agentic-topology-demo', 
+        label: 'Agentic Topology Demo',
+        description: 'Experience intelligent workflow orchestration',
+        icon: IconRobot, 
+        path: '/demo/agentic-topology',
+        badge: 'New',
+        color: 'blue'
+      },
     ]
   },
   {
@@ -223,7 +232,7 @@ function NavbarLink({ icon: Icon, label, link, links, initiallyOpened }: NavbarL
           '&:hover': {
             backgroundColor: 'var(--mantine-color-gray-0)',
           },
-          '&[dataActive="true"]': {
+          '&[data-active="true"]': {
             backgroundColor: 'var(--mantine-color-blue-light)',
           },
         },
@@ -271,7 +280,7 @@ function NavbarLink({ icon: Icon, label, link, links, initiallyOpened }: NavbarL
                     '&:hover': {
                       backgroundColor: 'var(--mantine-color-gray-0)',
                     },
-                    '&[dataActive="true"]': {
+                    '&[data-active="true"]': {
                       backgroundColor: 'var(--mantine-color-blue-light)',
                     },
                   },
@@ -344,7 +353,7 @@ export function Sidebar() {
                     }
                     styles={{
                       root: {
-                        '&[data-active]': {
+                        '&[data-active="true"]': {
                           backgroundColor: `var(--mantine-color-${item.color}-1)`,
                           color: `var(--mantine-color-${item.color}-filled)`,
                         },

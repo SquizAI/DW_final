@@ -1,0 +1,22 @@
+# Core Web Framework - Essential packages
+fastapi>=0.109.2
+uvicorn[standard]>=0.27.1
+python-multipart>=0.0.9
+pydantic>=2.6.1
+pydantic-settings>=2.0.0
+python-dotenv>=1.0.1
+
+# Data Processing - Essential packages
+numpy>=1.26.3
+pandas>=2.2.0
+
+# API and Environment
+requests>=2.31.0
+
+# SQLAlchemy and related dependencies
+sqlalchemy>=2.0.0
+alembic>=1.12.0
+
+# For JWT handling
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4 

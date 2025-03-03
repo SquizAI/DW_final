@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { Edge, Position, XYPosition } from 'reactflow';
+import { Edge, Position, XYPosition, OnNodesChange, OnEdgesChange, OnConnect } from 'reactflow';
 import { nodeTypes } from './nodes';
 import { WorkflowNode } from './nodes/reactflow';
 import { generateNodeId, NodeType } from './utils/nodeUtils';
@@ -188,18 +188,19 @@ interface WorkflowContextType {
   workflowDescription: string;
   isExecuting: boolean;
   executionProgress: number;
-  setNodes: (nodes: WorkflowNode[]) => void;
-  setEdges: (edges: Edge[]) => void;
-  addNode: (type: NodeType, position: XYPosition) => void;
+  addNode: (type: NodeType, position: XYPosition) => WorkflowNode;
   updateNodeData: (nodeId: string, data: Partial<WorkflowNodeData>) => void;
   selectNode: (nodeId: string | null) => void;
   deleteNode: (nodeId: string) => void;
   saveWorkflow: () => Promise<void>;
   loadWorkflow: (id: string) => Promise<void>;
   executeWorkflow: () => Promise<void>;
+  executeNodePreview: (nodeId: string) => Promise<any>;
   setWorkflowName: (name: string) => void;
   setWorkflowDescription: (description: string) => void;
   createNewWorkflow: () => void;
+  setNodes: React.Dispatch<React.SetStateAction<WorkflowNode[]>>;
+  setEdges: React.Dispatch<React.SetStateAction<Edge[]>>;
 }
 
 const WorkflowContext = createContext<WorkflowContextType | null>(null);
@@ -378,6 +379,84 @@ export const WorkflowProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   }, [workflowId, workflowName]);
 
+  // Add a new function to execute a single node for preview
+  const executeNodePreview = useCallback(async (nodeId: string): Promise<any> => {
+    try {
+      const node = nodes.find(n => n.id === nodeId);
+      if (!node) {
+        throw new Error('Node not found');
+      }
+      
+      // In a real implementation, this would call an API to execute the node
+      // For now, we'll simulate it with a timeout and mock data
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // Generate mock preview data based on node type
+      const mockPreviewData = {
+        columns: ['id', 'name', 'age', 'city', 'salary'],
+        rows: [
+          { id: 1, name: 'John Doe', age: 32, city: 'New York', salary: 85000 },
+          { id: 2, name: 'Jane Smith', age: 28, city: 'Boston', salary: 92000 },
+          { id: 3, name: 'Bob Johnson', age: 45, city: 'Chicago', salary: 115000 },
+          { id: 4, name: 'Alice Brown', age: 24, city: 'San Francisco', salary: 78000 },
+          { id: 5, name: 'Charlie Wilson', age: 37, city: 'Seattle', salary: 105000 },
+        ],
+        stats: {
+          rows: 1000,
+          columns: 5,
+          memory: '2.3 MB',
+          executionTime: 0.45
+        },
+        schema: {
+          fields: [
+            { name: 'id', type: 'integer', nullable: false },
+            { name: 'name', type: 'string', nullable: false },
+            { name: 'age', type: 'integer', nullable: false },
+            { name: 'city', type: 'string', nullable: false },
+            { name: 'salary', type: 'integer', nullable: false }
+          ]
+        }
+      };
+      
+      // Update node state to show it was executed
+      updateNodeData(nodeId, {
+        state: {
+          status: 'completed',
+          progress: 100
+        }
+      });
+      
+      notifications.show({
+        title: 'Preview Generated',
+        message: `Successfully generated preview for ${node.data.label}`,
+        color: 'green',
+      });
+      
+      return mockPreviewData;
+    } catch (error) {
+      console.error('Error executing node preview:', error);
+      
+      // Update node state to show execution failed
+      if (nodeId) {
+        updateNodeData(nodeId, {
+          state: {
+            status: 'error',
+            progress: 0,
+            results: error instanceof Error ? error.message : 'Unknown error'
+          }
+        });
+      }
+      
+      notifications.show({
+        title: 'Preview Failed',
+        message: `Failed to generate preview for node`,
+        color: 'red',
+      });
+      
+      throw error;
+    }
+  }, [nodes, updateNodeData]);
+
   const createNewWorkflow = useCallback(() => {
     setWorkflowId(null);
     setWorkflowName('New Workflow');
@@ -400,8 +479,6 @@ export const WorkflowProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         workflowDescription,
         isExecuting,
         executionProgress,
-        setNodes,
-        setEdges,
         addNode,
         updateNodeData,
         selectNode,
@@ -409,9 +486,12 @@ export const WorkflowProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         saveWorkflow,
         loadWorkflow,
         executeWorkflow,
+        executeNodePreview,
         setWorkflowName,
         setWorkflowDescription,
         createNewWorkflow,
+        setNodes,
+        setEdges,
       }}
     >
       {children}

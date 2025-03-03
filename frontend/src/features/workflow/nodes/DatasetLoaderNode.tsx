@@ -1,45 +1,38 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Card,
   Text,
   Group,
   Stack,
   Button,
-  TextInput,
-  Select,
   FileInput,
   Progress,
   Badge,
   ActionIcon,
   Tooltip,
-  Menu,
   Modal,
-  Tabs,
-  Code,
   ScrollArea,
+  Box,
+  Divider,
 } from '@mantine/core';
 import {
   IconUpload,
   IconDatabase,
-  IconApi,
-  IconFile,
-  IconCheck,
-  IconX,
   IconEye,
-  IconSettings,
   IconRefresh,
   IconDownload,
   IconTable,
-  IconChartBar,
-  IconPlus,
-  IconCode,
 } from '@tabler/icons-react';
 import { Handle, Position } from 'reactflow';
 import { notifications } from '@mantine/notifications';
 import { DatasetLoaderNodeData } from './types';
 import { DataSourceSelector } from '../../../components/data/DataSourceSelector';
-import { DataSource } from '../../../contexts/DataSourceContext';
+import { DataSource, DataSchema, useDataSources } from '../../../contexts/DataSourceContext';
+import { dataManagementApi } from '../../../api';
 
+// Import the NodeStyles components
+import { NodeContainer, NodeHeader, NodeContent, NodeStats } from '../components/common/NodeStyles';
+
+// Define interfaces for data preview
 interface DataPreview {
   columns: string[];
   rows: any[];
@@ -48,6 +41,13 @@ interface DataPreview {
     columns: number;
     memory: string;
   };
+  schema?: {
+    fields: {
+      name: string;
+      type: string;
+      nullable: boolean;
+    }[];
+  };
 }
 
 interface DatasetLoaderNodeProps {
@@ -55,20 +55,42 @@ interface DatasetLoaderNodeProps {
     label: string;
     dataSource?: DataSource;
     preview?: DataPreview;
+    sourceType?: 'file' | 'database' | 'api' | 'kaggle' | 'url';
+    config?: {
+      filePath?: string;
+    };
   };
   selected: boolean;
   onDataLoad?: (preview: DataPreview) => void;
+  updateNodeData?: (data: Partial<DatasetLoaderNodeData>) => void;
 }
 
-export function DatasetLoaderNode({ data, selected, onDataLoad }: DatasetLoaderNodeProps) {
-  const [preview, setPreview] = useState<DataPreview | null>(null);
+export function DatasetLoaderNode({ data, selected, onDataLoad, updateNodeData }: DatasetLoaderNodeProps) {
+  // State for data preview
+  const [preview, setPreview] = useState<DataPreview | null>(data.preview || null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  
+  // State for UI modals and panels
   const [showPreview, setShowPreview] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
   const [dataSourceSelectorOpen, setDataSourceSelectorOpen] = useState(false);
+  
+  // State for data source selection
   const [selectedDataSource, setSelectedDataSource] = useState<DataSource | null>(
     data.dataSource || null
   );
+  
+  // State for file upload
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  
+  // Get data source context
+  const { 
+    dataSources, 
+    loading: dataSourcesLoading, 
+    getDataSourceById, 
+    getDataSourcePreview 
+  } = useDataSources();
 
   useEffect(() => {
     if (data.preview) {
@@ -76,400 +98,371 @@ export function DatasetLoaderNode({ data, selected, onDataLoad }: DatasetLoaderN
     }
   }, [data.preview]);
 
+  // Function to update node data in the parent component
+  const updateNodeConfig = useCallback((updates: Partial<DatasetLoaderNodeData>) => {
+    if (updateNodeData) {
+      updateNodeData(updates);
+    }
+  }, [updateNodeData]);
+
+  // Handle file upload
   const handleFileUpload = async (file: File | null) => {
     if (!file) return;
     
     setLoading(true);
+    setError(null);
+    setUploadProgress(0);
+    
     try {
-      await new Promise(resolve => setTimeout(resolve, 1500));
-
-      const mockPreview: DataPreview = {
-        columns: ['id', 'name', 'age', 'city', 'salary'],
-        rows: [
-          { id: 1, name: 'John Doe', age: 32, city: 'New York', salary: 85000 },
-          { id: 2, name: 'Jane Smith', age: 28, city: 'Boston', salary: 92000 },
-          { id: 3, name: 'Bob Johnson', age: 45, city: 'Chicago', salary: 115000 },
-        ],
+      // Upload the file using the data management API
+      const result = await dataManagementApi.uploadFile(file, '/', (progress) => {
+        setUploadProgress(progress);
+      });
+      
+      // Get preview data for the uploaded file
+      const previewData = await dataManagementApi.getDatasetPreview(result.id, 10);
+      
+      // Format the preview data
+      const formattedPreview: DataPreview = {
+        columns: previewData.columns || [],
+        rows: previewData.rows || [],
         stats: {
-          rows: 1000,
-          columns: 5,
-          memory: '2.3 MB'
+          rows: previewData.stats?.rows || 0,
+          columns: previewData.stats?.columns || 0,
+          memory: previewData.stats?.memory || '0 KB'
+        },
+        schema: {
+          fields: previewData.schema?.fields || []
         }
       };
-
-      setPreview(mockPreview);
       
+      // Update state
+      setPreview(formattedPreview);
+      setSelectedFile(file);
+      
+      // Update node data
+      updateNodeConfig({
+        sourceType: 'file',
+        config: {
+          filePath: result.path
+        },
+        preview: formattedPreview,
+        label: file.name
+      });
+      
+      // Notify parent component
       if (onDataLoad) {
-        onDataLoad(mockPreview);
+        onDataLoad(formattedPreview);
       }
-    } catch (error) {
-      console.error('Error loading file:', error);
+      
+      // Show success notification
+      notifications.show({
+        title: 'File Uploaded',
+        message: `Successfully uploaded ${file.name}`,
+        color: 'green',
+      });
+    } catch (err) {
+      console.error('Error uploading file:', err);
+      setError(err instanceof Error ? err.message : 'Failed to upload file');
+      
+      notifications.show({
+        title: 'Upload Failed',
+        message: err instanceof Error ? err.message : 'Failed to upload file',
+        color: 'red',
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDatabaseConnect = () => {
-    setShowSettings(true);
-  };
-
-  const handleAPIConnect = () => {
-    setShowSettings(true);
-  };
-  
+  // Handle data source selection
   const handleDataSourceSelect = (dataSource: DataSource) => {
     setSelectedDataSource(dataSource);
     setDataSourceSelectorOpen(false);
     
     setLoading(true);
     
-    setTimeout(() => {
-      const mockPreview: DataPreview = {
+    try {
+      // Call getDataSourcePreview to track access (doesn't return data)
+      getDataSourcePreview(dataSource.id);
+      
+      // Create sample data based on the schema
+      const sampleRows = generateSampleRows(dataSource.schema, 3);
+      
+      // Format the preview data
+      const formattedPreview: DataPreview = {
         columns: dataSource.schema.fields.map(field => field.name),
-        rows: [
-          { id: 1, name: 'John Doe', age: 32, city: 'New York', salary: 85000 },
-          { id: 2, name: 'Jane Smith', age: 28, city: 'Boston', salary: 92000 },
-          { id: 3, name: 'Bob Johnson', age: 45, city: 'Chicago', salary: 115000 },
-        ],
+        rows: sampleRows,
         stats: {
-          rows: 1000,
+          rows: 1000, // Mock row count
           columns: dataSource.schema.fields.length,
-          memory: '2.3 MB'
-        }
+          memory: '2.5 MB' // Mock memory usage
+        },
+        schema: dataSource.schema
       };
       
-      setPreview(mockPreview);
+      // Update state
+      setPreview(formattedPreview);
       
+      // Update node data
+      updateNodeConfig({
+        sourceType: 'database',
+        config: {
+          filePath: dataSource.id
+        },
+        preview: formattedPreview,
+        label: dataSource.name
+      });
+      
+      // Notify parent component
       if (onDataLoad) {
-        onDataLoad(mockPreview);
+        onDataLoad(formattedPreview);
       }
       
+      // Show success notification
+      notifications.show({
+        title: 'Data Source Selected',
+        message: `Successfully selected ${dataSource.name}`,
+        color: 'green',
+      });
+    } catch (err: any) {
+      console.error('Error getting data source preview:', err);
+      setError(err instanceof Error ? err.message : 'Failed to get data source preview');
+      
+      notifications.show({
+        title: 'Preview Failed',
+        message: err instanceof Error ? err.message : 'Failed to get data source preview',
+        color: 'red',
+      });
+    } finally {
       setLoading(false);
-    }, 1500);
+    }
   };
 
+  // Helper function to generate sample rows based on schema
+  const generateSampleRows = (schema: DataSchema, count: number) => {
+    const rows = [];
+    
+    for (let i = 0; i < count; i++) {
+      const row: Record<string, any> = {};
+      
+      schema.fields.forEach(field => {
+        // Generate sample data based on field type
+        switch (field.type) {
+          case 'string':
+            row[field.name] = `Sample ${field.name} ${i + 1}`;
+            break;
+          case 'integer':
+            row[field.name] = Math.floor(Math.random() * 100) + 1;
+            break;
+          case 'decimal':
+          case 'float':
+          case 'number':
+            row[field.name] = (Math.random() * 100 + 1).toFixed(2);
+            break;
+          case 'boolean':
+            row[field.name] = Math.random() > 0.5;
+            break;
+          case 'date':
+            const date = new Date();
+            date.setDate(date.getDate() - Math.floor(Math.random() * 30));
+            row[field.name] = date.toISOString().split('T')[0];
+            break;
+          default:
+            row[field.name] = `Sample ${i + 1}`;
+        }
+      });
+      
+      rows.push(row);
+    }
+    
+    return rows;
+  };
+
+  // Render the node UI
   return (
     <>
-      <Card shadow="sm" padding="lg" radius="md" withBorder style={{ width: 300 }}>
-        <Card.Section withBorder inheritPadding py="xs">
-          <Group justify="space-between">
-            <Group>
-              <IconDatabase size={18} />
-              <Text fw={500}>{data.label || 'Dataset Loader'}</Text>
-            </Group>
-            {selectedDataSource && (
-              <Badge color="blue" size="sm">
-                {selectedDataSource.type}
-              </Badge>
-            )}
-          </Group>
-        </Card.Section>
-
-        <Stack gap="xs" mt="md">
-          {selectedDataSource ? (
+      <NodeContainer 
+        selected={selected} 
+        width={300}
+        hasInputHandle={false}
+      >
+        <NodeHeader
+          label={data.label || 'Dataset Loader'}
+          icon={<IconDatabase size={16} />}
+          color="blue"
+        />
+        
+        <NodeContent>
+          {/* Data Source Selection */}
+          {!selectedDataSource && !preview ? (
             <Stack gap="xs">
-              <Text size="sm" fw={500}>{selectedDataSource.name}</Text>
-              <Text size="xs" color="dimmed">{selectedDataSource.description}</Text>
+              <Text size="sm" fw={500}>Select Data Source</Text>
               
-              <Group gap="xs">
-                <Badge size="sm" variant="dot">
-                  Quality: {selectedDataSource.quality.score}/100
-                </Badge>
-                {selectedDataSource.tags.slice(0, 2).map((tag, index) => (
-                  <Badge key={index} size="sm" variant="outline">
-                    {tag}
-                  </Badge>
-                ))}
-              </Group>
+              <FileInput
+                placeholder="Upload file"
+                accept=".csv,.json,.xlsx,.parquet"
+                onChange={handleFileUpload}
+                leftSection={<IconUpload size={14} />}
+                disabled={loading}
+              />
+              
+              {loading && <Progress value={uploadProgress} size="sm" />}
+              
+              <Divider my="xs" />
               
               <Button 
                 variant="light" 
-                size="xs" 
-                leftSection={<IconPlus size={14} />}
                 onClick={() => setDataSourceSelectorOpen(true)}
-                mt="xs"
+                leftSection={<IconDatabase size={14} />}
+                fullWidth
               >
-                Change Data Source
+                Browse Data Sources
               </Button>
             </Stack>
           ) : (
-            <Button 
-              onClick={() => setDataSourceSelectorOpen(true)}
-              leftSection={<IconDatabase size={14} />}
-            >
-              Select Data Source
-            </Button>
-          )}
-
-          {loading && (
-            <>
-              <Progress 
-                value={65} 
-                size="sm" 
-                striped 
-                animated
-              />
-              <Text size="xs" ta="center">Loading...</Text>
-            </>
-          )}
-
-          {preview && (
-            <Group gap="xs">
-              <Badge size="sm" variant="dot">
-                {preview.stats.rows.toLocaleString()} rows
-              </Badge>
-              <Badge size="sm" variant="dot">
-                {preview.stats.columns} columns
-              </Badge>
-              <Badge size="sm" variant="dot">
-                {preview.stats.memory}
-              </Badge>
-            </Group>
-          )}
-          
-          {preview && selected && (
-            <Tabs defaultValue="data">
-              <Tabs.List>
-                <Tabs.Tab value="data" leftSection={<IconTable size={14} />}>Data</Tabs.Tab>
-                <Tabs.Tab value="schema" leftSection={<IconCode size={14} />}>Schema</Tabs.Tab>
-                <Tabs.Tab value="stats" leftSection={<IconChartBar size={14} />}>Stats</Tabs.Tab>
-              </Tabs.List>
-
-              <Tabs.Panel value="data" pt="xs">
-                <Text size="xs" fw={500} mt="xs">Preview:</Text>
-                <div style={{ overflowX: 'auto', fontSize: '0.7rem' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                    <thead>
-                      <tr>
-                        {preview.columns.map((col, i) => (
-                          <th key={i} style={{ padding: '4px', borderBottom: '1px solid #eee', textAlign: 'left' }}>
-                            {col}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {preview.rows.map((row, i) => (
-                        <tr key={i}>
-                          {preview.columns.map((col, j) => (
-                            <td key={j} style={{ padding: '4px', borderBottom: '1px solid #eee' }}>
-                              {row[col]}
-                            </td>
-                          ))}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </Tabs.Panel>
-
-              <Tabs.Panel value="schema" pt="xs">
-                <Text size="xs" fw={500} mt="xs">Schema:</Text>
-                {selectedDataSource && (
-                  <div style={{ fontSize: '0.7rem' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                      <thead>
-                        <tr>
-                          <th style={{ padding: '4px', borderBottom: '1px solid #eee', textAlign: 'left' }}>Field</th>
-                          <th style={{ padding: '4px', borderBottom: '1px solid #eee', textAlign: 'left' }}>Type</th>
-                          <th style={{ padding: '4px', borderBottom: '1px solid #eee', textAlign: 'left' }}>Nullable</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {selectedDataSource.schema.fields.map((field, i) => (
-                          <tr key={i}>
-                            <td style={{ padding: '4px', borderBottom: '1px solid #eee' }}>{field.name}</td>
-                            <td style={{ padding: '4px', borderBottom: '1px solid #eee' }}>{field.type}</td>
-                            <td style={{ padding: '4px', borderBottom: '1px solid #eee' }}>{field.nullable ? 'Yes' : 'No'}</td>
+            <Stack gap="xs">
+              {/* Preview of selected data */}
+              {preview && (
+                <>
+                  <Group justify="space-between">
+                    <Text size="sm" fw={500}>Data Preview</Text>
+                    <Group gap={4}>
+                      <Tooltip label="View Full Preview">
+                        <ActionIcon size="sm" onClick={() => setShowPreview(true)}>
+                          <IconEye size={14} />
+                        </ActionIcon>
+                      </Tooltip>
+                      <Tooltip label="Change Data Source">
+                        <ActionIcon size="sm" onClick={() => {
+                          setPreview(null);
+                          setSelectedDataSource(null);
+                        }}>
+                          <IconRefresh size={14} />
+                        </ActionIcon>
+                      </Tooltip>
+                    </Group>
+                  </Group>
+                  
+                  <ScrollArea h={120} offsetScrollbars>
+                    {preview.rows.length > 0 ? (
+                      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                        <thead>
+                          <tr>
+                            {preview.columns.map((col, i) => (
+                              <th key={i} style={{ 
+                                padding: '4px', 
+                                textAlign: 'left', 
+                                borderBottom: '1px solid #eee',
+                                fontSize: '12px'
+                              }}>
+                                {col}
+                              </th>
+                            ))}
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </Tabs.Panel>
-
-              <Tabs.Panel value="stats" pt="xs">
-                <Text size="xs" fw={500} mt="xs">Statistics:</Text>
-                {selectedDataSource && (
-                  <Stack gap={5} mt={5}>
-                    <Group justify="space-between" gap={5}>
-                      <Text size="xs">Quality Score:</Text>
-                      <Text size="xs" fw={500}>{selectedDataSource.quality.score}/100</Text>
-                    </Group>
-                    <Group justify="space-between" gap={5}>
-                      <Text size="xs">Missing Values:</Text>
-                      <Text size="xs" fw={500}>{selectedDataSource.quality.missingValues}</Text>
-                    </Group>
-                    <Group justify="space-between" gap={5}>
-                      <Text size="xs">Duplicates:</Text>
-                      <Text size="xs" fw={500}>{selectedDataSource.quality.duplicates}</Text>
-                    </Group>
-                    <Group justify="space-between" gap={5}>
-                      <Text size="xs">Outliers:</Text>
-                      <Text size="xs" fw={500}>{selectedDataSource.quality.outliers}</Text>
-                    </Group>
-                  </Stack>
-                )}
-              </Tabs.Panel>
-            </Tabs>
-          )}
-        </Stack>
-
-        <Handle type="source" position={Position.Right} id="output" />
-      </Card>
-
-      <Modal
-        opened={showPreview}
-        onClose={() => setShowPreview(false)}
-        title="Dataset Preview"
-        size="xl"
-      >
-        {preview && (
-          <Stack gap="md">
-            <Tabs defaultValue="data">
-              <Tabs.List>
-                <Tabs.Tab value="data" leftSection={<IconTable size={14} />}>Data</Tabs.Tab>
-                <Tabs.Tab value="schema" leftSection={<IconCode size={14} />}>Schema</Tabs.Tab>
-                <Tabs.Tab value="stats" leftSection={<IconChartBar size={14} />}>Statistics</Tabs.Tab>
-              </Tabs.List>
-
-              <Tabs.Panel value="data" pt="xs">
-                <ScrollArea h={400}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                    <thead>
-                      <tr>
-                        {preview.columns.map(col => (
-                          <th key={col} style={{ padding: '8px', borderBottom: '1px solid #eee' }}>
-                            {col}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {preview.rows.map((row, i) => (
-                        <tr key={i}>
-                          {preview.columns.map(col => (
-                            <td key={col} style={{ padding: '8px', borderBottom: '1px solid #eee' }}>
-                              {row[col]}
-                            </td>
+                        </thead>
+                        <tbody>
+                          {preview.rows.map((row, i) => (
+                            <tr key={i}>
+                              {preview.columns.map((col, j) => (
+                                <td key={j} style={{ 
+                                  padding: '4px', 
+                                  borderBottom: '1px solid #eee',
+                                  fontSize: '12px'
+                                }}>
+                                  {String(row[col] !== undefined ? row[col] : '')}
+                                </td>
+                              ))}
+                            </tr>
                           ))}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </ScrollArea>
-              </Tabs.Panel>
-
-              <Tabs.Panel value="schema" pt="xs">
-                <ScrollArea h={400}>
-                  <Stack gap="xs">
-                    {preview.columns.map(col => (
-                      <Group key={col} justify="space-between">
-                        <Text>{col}</Text>
-                        <Code>{preview.rows[0][col]}</Code>
-                      </Group>
-                    ))}
-                  </Stack>
-                </ScrollArea>
-              </Tabs.Panel>
-
-              <Tabs.Panel value="stats" pt="xs">
-                <Stack gap="md">
-                  <Card withBorder>
-                    <Group justify="space-between">
-                      <Text>Total Rows</Text>
-                      <Text fw={500}>{preview.stats.rows.toLocaleString()}</Text>
-                    </Group>
-                  </Card>
-                  <Card withBorder>
-                    <Group justify="space-between">
-                      <Text>Total Columns</Text>
-                      <Text fw={500}>{preview.stats.columns}</Text>
-                    </Group>
-                  </Card>
-                  <Card withBorder>
-                    <Group justify="space-between">
-                      <Text>Memory Usage</Text>
-                      <Text fw={500}>{preview.stats.memory}</Text>
-                    </Group>
-                  </Card>
-                </Stack>
-              </Tabs.Panel>
-            </Tabs>
-
-            <Group justify="space-between" mt="md">
-              <Button 
-                leftSection={<IconDownload size={14} />}
-                variant="light"
-              >
-                Export Profile
-              </Button>
-              <Button 
-                leftSection={<IconCheck size={14} />}
-                onClick={() => setShowPreview(false)}
-              >
-                Close
-              </Button>
-            </Group>
-          </Stack>
-        )}
-      </Modal>
-
-      <Modal
-        opened={showSettings}
-        onClose={() => setShowSettings(false)}
-        title="Connection Settings"
-        size="lg"
-      >
-        <Stack gap="md">
-          <Select
-            label="Connection Type"
-            placeholder="Select connection type"
-            data={[
-              { value: 'mysql', label: 'MySQL' },
-              { value: 'postgres', label: 'PostgreSQL' },
-              { value: 'mongodb', label: 'MongoDB' },
-              { value: 'rest', label: 'REST API' },
-              { value: 'graphql', label: 'GraphQL' },
-            ]}
-          />
-          
-          <TextInput
-            label="Host"
-            placeholder="Enter host address"
-          />
-          
-          <TextInput
-            label="Port"
-            placeholder="Enter port number"
-          />
-          
-          <TextInput
-            label="Username"
-            placeholder="Enter username"
-          />
-          
-          <TextInput
-            type="password"
-            label="Password"
-            placeholder="Enter password"
-          />
-          
-          <Group justify="right" mt="md">
-            <Button variant="light" onClick={() => setShowSettings(false)}>Cancel</Button>
-            <Button>Connect</Button>
-          </Group>
-        </Stack>
-      </Modal>
+                        </tbody>
+                      </table>
+                    ) : (
+                      <Text size="sm" c="dimmed" ta="center" py="md">No preview data available</Text>
+                    )}
+                  </ScrollArea>
+                  
+                  <Group grow>
+                    <NodeStats stats={{
+                      Rows: preview.stats.rows.toLocaleString(),
+                      Columns: preview.stats.columns,
+                      Size: preview.stats.memory
+                    }} />
+                  </Group>
+                </>
+              )}
+            </Stack>
+          )}
+        </NodeContent>
+        
+        {/* Output Handle */}
+        <Handle
+          type="source"
+          position={Position.Bottom}
+          id="output"
+          style={{ background: '#228be6' }}
+        />
+      </NodeContainer>
       
+      {/* Data Source Selector Modal */}
       <DataSourceSelector
         opened={dataSourceSelectorOpen}
         onClose={() => setDataSourceSelectorOpen(false)}
         onSelect={handleDataSourceSelect}
-        title="Select Data Source"
-        description="Choose a data source to use in your workflow"
       />
+      
+      {/* Preview Modal */}
+      <Modal
+        opened={showPreview}
+        onClose={() => setShowPreview(false)}
+        title="Data Preview"
+        size="xl"
+      >
+        {preview && (
+          <Stack>
+            <Group justify="space-between">
+              <Text fw={500}>{data.label || 'Dataset'}</Text>
+              <Badge>{preview.stats.rows.toLocaleString()} rows, {preview.stats.columns} columns</Badge>
+            </Group>
+            
+            <ScrollArea h={400} offsetScrollbars>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr>
+                    {preview.columns.map((col, i) => (
+                      <th key={i} style={{ 
+                        padding: '8px', 
+                        textAlign: 'left', 
+                        borderBottom: '1px solid #eee',
+                        position: 'sticky',
+                        top: 0,
+                        background: 'white',
+                        zIndex: 1
+                      }}>
+                        {col}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {preview.rows.map((row, i) => (
+                    <tr key={i}>
+                      {preview.columns.map((col, j) => (
+                        <td key={j} style={{ 
+                          padding: '8px', 
+                          borderBottom: '1px solid #eee'
+                        }}>
+                          {String(row[col] !== undefined ? row[col] : '')}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </ScrollArea>
+          </Stack>
+        )}
+      </Modal>
     </>
   );
 } 
